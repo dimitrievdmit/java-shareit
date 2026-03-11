@@ -28,8 +28,8 @@ class UserServiceTest {
     @InjectMocks
     private UserServiceImpl userService;
 
-    private final Long EXISTING_USER_ID = 1L;
-    private final Long NON_EXISTING_USER_ID = 999L;
+    private static final Long EXISTING_USER_ID = 1L;
+    private static final Long NON_EXISTING_USER_ID = 999L;
 
     // --- Тесты для create() ---
 

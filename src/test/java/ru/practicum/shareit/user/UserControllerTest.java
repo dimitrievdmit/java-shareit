@@ -173,6 +173,7 @@ class UserControllerTest {
                 .andExpect(jsonPath("$.error").value("Ошибка валидации входных данных"))
                 .andExpect(jsonPath("$.description").value("Электронная почта должна соответствовать формату электронного адреса"));
     }
+
     @Test
     void updateUser_NegativeId_ShouldReturnBadRequest() throws Exception {
         mockMvc.perform(patch("/users/-1")

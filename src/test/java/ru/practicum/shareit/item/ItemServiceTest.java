@@ -34,10 +34,10 @@ class ItemServiceTest {
     @InjectMocks
     private ItemServiceImpl itemService;
 
-    private final Long EXISTING_ITEM_ID = 1L;
-    private final Long NON_EXISTING_ITEM_ID = 999L;
-    private final Long OWNER_ID = 100L;
-    private final Long ANOTHER_OWNER_ID = 200L;
+    private static final Long EXISTING_ITEM_ID = 1L;
+    private static final Long NON_EXISTING_ITEM_ID = 999L;
+    private static final Long OWNER_ID = 100L;
+    private static final Long ANOTHER_OWNER_ID = 200L;
 
     // --- Тесты для create() ---
 
@@ -321,6 +321,7 @@ class ItemServiceTest {
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("Пользователь с id = " + OWNER_ID + " не найден");
     }
+
     @Test
     void delete_AnotherOwnerTriesToDelete_ShouldThrowPermissionException() {
         // Given
