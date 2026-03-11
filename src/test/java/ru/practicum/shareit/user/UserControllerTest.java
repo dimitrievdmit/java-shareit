@@ -1,0 +1,296 @@
+package ru.practicum.shareit.user;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import ru.practicum.shareit.exception.AlreadyExistException;
+import ru.practicum.shareit.exception.NotFoundException;
+import ru.practicum.shareit.user.controller.UserController;
+import ru.practicum.shareit.user.dto.UserCreateDTO;
+import ru.practicum.shareit.user.dto.UserResponseDTO;
+import ru.practicum.shareit.user.dto.UserUpdateDTO;
+import ru.practicum.shareit.user.service.UserService;
+
+import static org.mockito.Mockito.*;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+
+@WebMvcTest(UserController.class)
+@RequiredArgsConstructor(onConstructor_ = @Autowired)
+class UserControllerTest {
+
+    private final MockMvc mockMvc;
+
+    @MockBean
+    private final UserService userService;
+
+    private final ObjectMapper objectMapper;
+
+    private final UserResponseDTO testUser = new UserResponseDTO(1L, "test@yandex.ru", "Test User");
+    private final UserCreateDTO createDTO = new UserCreateDTO("test@yandex.ru", "Test User");
+    private final UserUpdateDTO updateDTO = new UserUpdateDTO("new@yandex.ru", "Updated Name");
+
+    // --- Тесты для POST /users ---
+
+    @Test
+    void createUser_ValidData_ShouldReturnCreated() throws Exception {
+        when(userService.create(any(UserCreateDTO.class))).thenReturn(testUser);
+
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createDTO)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.email").value("test@yandex.ru"))
+                .andExpect(jsonPath("$.name").value("Test User"));
+
+        verify(userService, times(1)).create(any(UserCreateDTO.class));
+    }
+
+    @Test
+    void createUser_EmptyEmail_ShouldReturnBadRequest() throws Exception {
+        UserCreateDTO invalidUser = new UserCreateDTO("", "Test User");
+
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidUser)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации: невалидные данные DTO"))
+                .andExpect(jsonPath("$.description").value("Электронная почта не может быть пустой"));
+    }
+
+    @Test
+    void createUser_InvalidEmail_ShouldReturnBadRequest() throws Exception {
+        UserCreateDTO invalidUser = new UserCreateDTO("invalid-email", "Test User");
+
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidUser)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации: невалидные данные DTO"))
+                .andExpect(jsonPath("$.description").value("Электронная почта должна соответствовать формату электронного адреса"));
+    }
+
+    @Test
+    void createUser_EmptyName_ShouldReturnBadRequest() throws Exception {
+        UserCreateDTO invalidUser = new UserCreateDTO("test@yandex.ru", "");
+
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidUser)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации: невалидные данные DTO"))
+                .andExpect(jsonPath("$.description").value("Имя не может быть пустым"));
+    }
+
+    @Test
+    void createUser_EmailAlreadyExists_ShouldReturnConflict() throws Exception {
+        when(userService.create(any(UserCreateDTO.class)))
+                .thenThrow(new AlreadyExistException("Пользователь с email 'test@yandex.ru' уже существует"));
+
+        mockMvc.perform(post("/users")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(createDTO)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("Ошибка конфликта"))
+                .andExpect(jsonPath("$.description").value("Пользователь с email 'test@yandex.ru' уже существует"));
+    }
+
+    // --- Тесты для GET /users/{id} ---
+
+    @Test
+    void getUser_ValidId_ShouldReturnUser() throws Exception {
+        when(userService.get(1L)).thenReturn(testUser);
+
+        mockMvc.perform(get("/users/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.email").value("test@yandex.ru"))
+                .andExpect(jsonPath("$.name").value("Test User"));
+
+        verify(userService, times(1)).get(1L);
+    }
+
+    @Test
+    void getUser_NegativeId_ShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(get("/users/-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации входных данных"))
+                .andExpect(jsonPath("$.description").value("Ид должен быть больше 0"));
+    }
+
+    @Test
+    void getUser_ZeroId_ShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(get("/users/0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации входных данных"))
+                .andExpect(jsonPath("$.description").value("Ид должен быть больше 0"));
+    }
+
+    @Test
+    void getUser_NonExistentId_ShouldReturnNotFound() throws Exception {
+        when(userService.get(999L)).thenThrow(new NotFoundException("Пользователь с id = 999 не найден"));
+
+        mockMvc.perform(get("/users/999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Не найдено"))
+                .andExpect(jsonPath("$.description").value("Пользователь с id = 999 не найден"));
+    }
+
+    // --- Тесты для PATCH /users/{id} ---
+
+
+    @Test
+    void updateUser_ValidData_ShouldReturnUpdatedUser() throws Exception {
+        when(userService.update(1L, updateDTO)).thenReturn(
+                new UserResponseDTO(1L, "new@yandex.ru", "Updated Name"));
+
+
+        mockMvc.perform(patch("/users/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDTO)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.email").value("new@yandex.ru"))
+                .andExpect(jsonPath("$.name").value("Updated Name"));
+
+        verify(userService, times(1)).update(1L, updateDTO);
+    }
+
+    @Test
+    void updateUser_InvalidEmailFormat_ShouldReturnBadRequest() throws Exception {
+        UserUpdateDTO invalidUpdate = new UserUpdateDTO("invalid-email", "Updated Name");
+
+        mockMvc.perform(patch("/users/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalidUpdate)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации входных данных"))
+                .andExpect(jsonPath("$.description").value("Электронная почта должна соответствовать формату электронного адреса"));
+    }
+    @Test
+    void updateUser_NegativeId_ShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(patch("/users/-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDTO)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации входных данных"))
+                .andExpect(jsonPath("$.description").value("Ид должен быть больше 0"));
+    }
+
+    @Test
+    void updateUser_ZeroId_ShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(patch("/users/0")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDTO)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации входных данных"))
+                .andExpect(jsonPath("$.description").value("Ид должен быть больше 0"));
+    }
+
+    @Test
+    void updateUser_NonExistentId_ShouldReturnNotFound() throws Exception {
+        when(userService.update(999L, updateDTO))
+                .thenThrow(new NotFoundException("Пользователь с id = 999 не найден"));
+
+        mockMvc.perform(patch("/users/999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDTO)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Не найдено"))
+                .andExpect(jsonPath("$.description").value("Пользователь с id = 999 не найден"));
+    }
+
+    @Test
+    void updateUser_EmailAlreadyExists_ShouldReturnConflict() throws Exception {
+        when(userService.update(1L, updateDTO))
+                .thenThrow(new AlreadyExistException("Пользователь с email 'new@yandex.ru' уже существует"));
+
+        mockMvc.perform(patch("/users/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(updateDTO)))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("Ошибка конфликта"))
+                .andExpect(jsonPath("$.description").value("Пользователь с email 'new@yandex.ru' уже существует"));
+    }
+
+    @Test
+    void updateUser_PartialUpdateWithOnlyName_ShouldReturnUpdatedUser() throws Exception {
+        UserUpdateDTO partialUpdate = new UserUpdateDTO(null, "New Name");
+        UserResponseDTO expectedResponse = new UserResponseDTO(1L, "test@yandex.ru", "New Name");
+
+        when(userService.update(1L, partialUpdate)).thenReturn(expectedResponse);
+
+        mockMvc.perform(patch("/users/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(partialUpdate)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.email").value("test@yandex.ru"))
+                .andExpect(jsonPath("$.name").value("New Name"));
+
+        verify(userService, times(1)).update(1L, partialUpdate);
+    }
+
+    @Test
+    void updateUser_PartialUpdateWithOnlyEmail_ShouldReturnUpdatedUser() throws Exception {
+        UserUpdateDTO partialUpdate = new UserUpdateDTO("newemail@yandex.ru", null);
+        UserResponseDTO expectedResponse = new UserResponseDTO(1L, "newemail@yandex.ru", "Test User");
+
+        when(userService.update(1L, partialUpdate)).thenReturn(expectedResponse);
+
+        mockMvc.perform(patch("/users/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(partialUpdate)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(1L))
+                .andExpect(jsonPath("$.email").value("newemail@yandex.ru"))
+                .andExpect(jsonPath("$.name").value("Test User"));
+
+        verify(userService, times(1)).update(1L, partialUpdate);
+    }
+
+    // --- Тесты для DELETE /users/{id} ---
+
+    @Test
+    void deleteUser_ValidId_ShouldReturnNoContent() throws Exception {
+        doNothing().when(userService).delete(1L);
+
+        mockMvc.perform(delete("/users/1"))
+                .andExpect(status().isNoContent());
+
+        verify(userService, times(1)).delete(1L);
+    }
+
+    @Test
+    void deleteUser_NegativeId_ShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(delete("/users/-1"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации входных данных"))
+                .andExpect(jsonPath("$.description").value("Ид должен быть больше 0"));
+    }
+
+    @Test
+    void deleteUser_ZeroId_ShouldReturnBadRequest() throws Exception {
+        mockMvc.perform(delete("/users/0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error").value("Ошибка валидации входных данных"))
+                .andExpect(jsonPath("$.description").value("Ид должен быть больше 0"));
+    }
+
+    @Test
+    void deleteUser_NonExistentId_ShouldReturnNotFound() throws Exception {
+        doThrow(new NotFoundException("Пользователь с id = 999 не найден"))
+                .when(userService).delete(999L);
+
+        mockMvc.perform(delete("/users/999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error").value("Не найдено"))
+                .andExpect(jsonPath("$.description").value("Пользователь с id = 999 не найден"));
+    }
+}
