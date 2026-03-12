@@ -24,6 +24,9 @@ public class ItemServiceImpl implements ItemService {
     private final ItemRepository itemRepository;
     private final UserService userService;
 
+    private static final String PERMISSION_ERR_TEXT = "Владелец с ID %d не имеет прав " +
+            "на выполнение операции с вещью с ID %d";
+
     @Override
     public ItemResponseDTO create(ItemCreateDTO itemCreateDTO, Long ownerId) {
         log.info("Создание вещи для владельца с ID {}: {}", ownerId, itemCreateDTO.name());
@@ -69,8 +72,8 @@ public class ItemServiceImpl implements ItemService {
         checkOwnerPermission(itemId, ownerId);
 
         Item existingItem = itemRepository.get(itemId);
-        ItemMapper.updateFromDTO(itemUpdateDTO, existingItem);
-        Item updatedItem = itemRepository.update(existingItem);
+        Item newItem = ItemMapper.updateFromDTO(itemUpdateDTO, existingItem);
+        Item updatedItem = itemRepository.update(newItem);
         return ItemMapper.mapToResponseDTO(updatedItem);
     }
 
@@ -94,10 +97,8 @@ public class ItemServiceImpl implements ItemService {
 
     private void checkOwnerPermission(Long itemId, Long ownerId) {
         Item item = itemRepository.get(itemId);
-        if (!item.getOwnerId().equals(ownerId)) {
-            String errText = String.format(
-                    "Владелец с ID %d не имеет прав на выполнение операции с вещью с ID %d", ownerId, itemId
-            );
+        if (!item.ownerId().equals(ownerId)) {
+            String errText = String.format(PERMISSION_ERR_TEXT, ownerId, itemId);
             log.error("Ошибка доступа: {}", errText);
             throw new PermissionException(errText);
         }

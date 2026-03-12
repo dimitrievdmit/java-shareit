@@ -35,9 +35,9 @@ abstract class BaseUserRepositoryTest {
         User savedUser = userRepository.create(user);
 
         // Then
-        assertNotNull(savedUser.getId());
-        assertEquals(email1, savedUser.getEmail());
-        assertEquals(name1, savedUser.getName());
+        assertNotNull(savedUser.id());
+        assertEquals(email1, savedUser.email());
+        assertEquals(name1, savedUser.name());
     }
 
     @Test
@@ -45,16 +45,16 @@ abstract class BaseUserRepositoryTest {
         // Given
         User user = new User(null, email1, name1);
         User savedUser = userRepository.create(user);
-        Long userId = savedUser.getId();
+        Long userId = savedUser.id();
 
         // When
         User foundUser = userRepository.get(userId);
 
         // Then
         assertNotNull(foundUser);
-        assertEquals(userId, foundUser.getId());
-        assertEquals(email1, foundUser.getEmail());
-        assertEquals(name1, foundUser.getName());
+        assertEquals(userId, foundUser.id());
+        assertEquals(email1, foundUser.email());
+        assertEquals(name1, foundUser.name());
     }
 
     @Test
@@ -71,7 +71,7 @@ abstract class BaseUserRepositoryTest {
         // Given
         User user = new User(null, email1, name1);
         User savedUser = userRepository.create(user);
-        Long userId = savedUser.getId();
+        Long userId = savedUser.id();
 
         // Создаём обновлённую версию
         User updatedUser = new User(userId, "newemail@test.com", "New Name");
@@ -80,9 +80,9 @@ abstract class BaseUserRepositoryTest {
         User result = userRepository.update(updatedUser);
 
         // Then
-        assertEquals(userId, result.getId());
-        assertEquals("newemail@test.com", result.getEmail());
-        assertEquals("New Name", result.getName());
+        assertEquals(userId, result.id());
+        assertEquals("newemail@test.com", result.email());
+        assertEquals("New Name", result.name());
     }
 
     @Test
@@ -90,7 +90,7 @@ abstract class BaseUserRepositoryTest {
         // Given
         User user = new User(null, email1, name1);
         User savedUser = userRepository.create(user);
-        Long userId = savedUser.getId();
+        Long userId = savedUser.id();
 
         // When
         userRepository.delete(userId);
@@ -113,7 +113,7 @@ abstract class BaseUserRepositoryTest {
         User savedUser = userRepository.create(user);
 
         // When
-        boolean notExists = userRepository.checkIfNotExists(savedUser.getId());
+        boolean notExists = userRepository.checkIfNotExists(savedUser.id());
 
         // Then
         assertFalse(notExists);
@@ -191,9 +191,9 @@ abstract class BaseUserRepositoryTest {
         User savedUser2 = userRepository.create(user2);
 
         // Then: ID должны быть уникальными и последовательно возрастающими
-        assertNotNull(savedUser1.getId());
-        assertNotNull(savedUser2.getId());
-        assertNotEquals(savedUser1.getId(), savedUser2.getId());
-        assertTrue(savedUser2.getId() > savedUser1.getId());
+        assertNotNull(savedUser1.id());
+        assertNotNull(savedUser2.id());
+        assertNotEquals(savedUser1.id(), savedUser2.id());
+        assertTrue(savedUser2.id() > savedUser1.id());
     }
 }

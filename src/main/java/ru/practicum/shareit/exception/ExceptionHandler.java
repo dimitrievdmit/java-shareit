@@ -37,7 +37,7 @@ public class ExceptionHandler {
                 "Ошибка валидации: невалидные данные DTO",
                 errorMessage
         );
-        log.warn("Ошибка валидации DTO: {}", errorMessage);
+        log.error("Ошибка валидации DTO: {}", errorMessage);
         return errorResponse;
     }
 
@@ -52,7 +52,7 @@ public class ExceptionHandler {
                 "Ошибка валидации: невалидный параметр",
                 errorMessage
         );
-        log.warn("Ошибка валидации параметра: {}", errorMessage);
+        log.error("Ошибка валидации параметра: {}", errorMessage);
         return errorResponse;
     }
 
@@ -74,7 +74,7 @@ public class ExceptionHandler {
                 "Ошибка валидации входных данных",
                 errorMessage
         );
-        log.warn("Ошибка валидации входных данных: {}", errorMessage);
+        log.error("Ошибка валидации входных данных: {}", errorMessage);
         return errorResponse;
     }
 
@@ -107,7 +107,7 @@ public class ExceptionHandler {
                 "Ошибка валидации: отсутствует обязательный параметр",
                 errorMessage
         );
-        log.warn("Отсутствует обязательный параметр: {}", errorMessage);
+        log.error("Отсутствует обязательный параметр: {}", errorMessage);
         return errorResponse;
     }
 
@@ -115,7 +115,7 @@ public class ExceptionHandler {
     @ResponseStatus(HttpStatus.CONFLICT)
     public ExceptionResponse handleAlreadyExists(AlreadyExistException e) {
         ExceptionResponse errorResponse = new ExceptionResponse("Ошибка конфликта", e.getMessage());
-        log.warn("{}", errorResponse);
+        log.error("{}", errorResponse);
         return errorResponse;
     }
 
@@ -123,7 +123,7 @@ public class ExceptionHandler {
     @ResponseStatus(HttpStatus.NOT_FOUND)
     public ExceptionResponse handleNotFound(RuntimeException e) {
         ExceptionResponse errorResponse = new ExceptionResponse("Не найдено", e.getMessage());
-        log.warn("{}", errorResponse);
+        log.error("{}", errorResponse);
         return errorResponse;
     }
 
@@ -131,7 +131,7 @@ public class ExceptionHandler {
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public ExceptionResponse handlePermission(RuntimeException e) {
         ExceptionResponse errorResponse = new ExceptionResponse("Ошибка прав доступа", e.getMessage());
-        log.warn("{}", errorResponse);
+        log.error("{}", errorResponse);
         return errorResponse;
     }
 

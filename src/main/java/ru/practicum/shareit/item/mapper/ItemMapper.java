@@ -20,11 +20,11 @@ public final class ItemMapper {
      */
     public static ItemResponseDTO mapToResponseDTO(Item item) {
         return new ItemResponseDTO(
-                item.getId(),
-                item.getName(),
-                item.getDescription(),
-                item.getAvailable(),
-                item.getRequestId()
+                item.id(),
+                item.name(),
+                item.description(),
+                item.available(),
+                item.requestId()
         );
     }
 
@@ -48,31 +48,30 @@ public final class ItemMapper {
     }
 
     /**
-     * Обновляет существующий объект Item данными из ItemUpdateDTO.
+     * Обновляет данные объекта Item, создавая новый экземпляр record на основе ItemUpdateDTO.
      * Сохраняет неизменным id и ownerId.
      * Обновляет только не‑null поля.
      */
-    public static void updateFromDTO(ItemUpdateDTO itemUpdateDTO, Item item) {
-        if (itemUpdateDTO.name() != null) {
-            item.setName(itemUpdateDTO.name());
-        }
-        if (itemUpdateDTO.description() != null && !itemUpdateDTO.description().isBlank()) {
-            item.setDescription(itemUpdateDTO.description());
-        }
-        if (itemUpdateDTO.available() != null) {
-            item.setAvailable(itemUpdateDTO.available());
-        }
-        if (itemUpdateDTO.requestId() != null) {
-            item.setRequestId(itemUpdateDTO.requestId());
-        }
+    public static Item updateFromDTO(ItemUpdateDTO itemUpdateDTO, Item item) {
+        return new Item(
+                item.id(),
+                item.ownerId(),
+                (itemUpdateDTO.name() != null) ? itemUpdateDTO.name() : item.name(),
+                (itemUpdateDTO.description() != null && !itemUpdateDTO.description().isBlank())
+                        ? itemUpdateDTO.description()
+                        : item.description(),
+                (itemUpdateDTO.available() != null) ? itemUpdateDTO.available() : item.available(),
+                (itemUpdateDTO.requestId() != null) ? itemUpdateDTO.requestId() : item.requestId()
+        );
     }
+
 
     /**
      * Преобразует список доменных моделей Item в список ItemResponseDTO с сортировкой по ID.
      */
     public static List<ItemResponseDTO> mapToResponseDTOList(Collection<Item> items) {
         return items.stream()
-                .sorted(Comparator.comparing(Item::getId))
+                .sorted(Comparator.comparing(Item::id))
                 .map(ItemMapper::mapToResponseDTO)
                 .collect(Collectors.toList());
     }

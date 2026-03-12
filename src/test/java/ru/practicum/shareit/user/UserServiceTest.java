@@ -2,6 +2,7 @@ package ru.practicum.shareit.user;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -103,23 +104,45 @@ class UserServiceTest {
         Long userId = 1L;
         UserUpdateDTO updateDTO = new UserUpdateDTO("newemail@example.com", "Updated Name");
         User existingUser = new User(userId, "oldemail@example.com", "Old Name");
-        User updatedUser = new User(userId, "newemail@example.com", "Updated Name");
-        UserResponseDTO expectedResponse = UserMapper.mapToResponseDTO(updatedUser);
+
+        // Создаём ожидаемый результат — новый объект с обновлёнными данными
+        User expectedUpdatedUser = new User(
+                userId,
+                "newemail@example.com",
+                "Updated Name"
+        );
+        UserResponseDTO expectedResponse = UserMapper.mapToResponseDTO(expectedUpdatedUser);
 
         when(userRepository.get(userId)).thenReturn(existingUser);
         when(userRepository.checkIfNotExists(userId)).thenReturn(false);
         when(userRepository.existsByEmail(updateDTO.email())).thenReturn(false);
-        when(userRepository.update(existingUser)).thenReturn(updatedUser);
+        // Указываем, что репозиторий должен вернуть ожидаемый обновлённый объект
+        when(userRepository.update(any(User.class))).thenReturn(expectedUpdatedUser);
 
         // When
         UserResponseDTO result = userService.update(userId, updateDTO);
 
         // Then
         assertThat(result).isEqualTo(expectedResponse);
-        assertThat(existingUser.getEmail()).isEqualTo("newemail@example.com");
-        assertThat(existingUser.getName()).isEqualTo("Updated Name");
-        verify(userRepository, times(1)).update(existingUser);
+
+        // Проверяем, что update был вызван ровно один раз с любым объектом User
+        verify(userRepository, times(1)).update(any(User.class));
+
+        // Используем ArgumentCaptor для проверки переданного в update объекта
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).update(userCaptor.capture());
+        User capturedUser = userCaptor.getValue();
+
+        // Проверяем поля захваченного объекта
+        assertThat(capturedUser.id()).isEqualTo(userId);
+        assertThat(capturedUser.email()).isEqualTo("newemail@example.com");
+        assertThat(capturedUser.name()).isEqualTo("Updated Name");
+
+        // Убеждаемся, что исходный объект не изменился (важно для record)
+        assertThat(existingUser.email()).isEqualTo("oldemail@example.com");
+        assertThat(existingUser.name()).isEqualTo("Old Name");
     }
+
 
     @Test
     void update_ExistingUserWithSameEmail_ShouldUpdateNameOnly() {
@@ -127,21 +150,44 @@ class UserServiceTest {
         Long userId = 1L;
         UserUpdateDTO updateDTO = new UserUpdateDTO(null, "Updated Name");
         User existingUser = new User(userId, "email@example.com", "Old Name");
-        User updatedUser = new User(userId, "email@example.com", "Updated Name");
-        UserResponseDTO expectedResponse = UserMapper.mapToResponseDTO(updatedUser);
+
+        // Создаём ожидаемый результат — новый объект с обновлённым именем, email сохранён
+        User expectedUpdatedUser = new User(
+                userId,
+                "email@example.com",
+                "Updated Name"
+        );
+        UserResponseDTO expectedResponse = UserMapper.mapToResponseDTO(expectedUpdatedUser);
 
         when(userRepository.get(userId)).thenReturn(existingUser);
         when(userRepository.checkIfNotExists(userId)).thenReturn(false);
-        when(userRepository.update(existingUser)).thenReturn(updatedUser);
+        // Указываем, что репозиторий должен вернуть ожидаемый обновлённый объект
+        when(userRepository.update(any(User.class))).thenReturn(expectedUpdatedUser);
 
         // When
         UserResponseDTO result = userService.update(userId, updateDTO);
 
         // Then
         assertThat(result).isEqualTo(expectedResponse);
-        assertThat(existingUser.getEmail()).isEqualTo("email@example.com"); // не изменилось
-        assertThat(existingUser.getName()).isEqualTo("Updated Name");
+
+        // Проверяем, что update был вызван ровно один раз с любым объектом User
+        verify(userRepository, times(1)).update(any(User.class));
+
+        // Используем ArgumentCaptor для проверки переданного в update объекта
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).update(userCaptor.capture());
+        User capturedUser = userCaptor.getValue();
+
+        // Проверяем, что новый объект содержит только обновлённое поле (имя), email сохранён
+        assertThat(capturedUser.id()).isEqualTo(userId);
+        assertThat(capturedUser.email()).isEqualTo("email@example.com"); // не изменилось
+        assertThat(capturedUser.name()).isEqualTo("Updated Name"); // изменилось
+
+        // Убеждаемся, что исходный объект не изменился (важно для record)
+        assertThat(existingUser.email()).isEqualTo("email@example.com");
+        assertThat(existingUser.name()).isEqualTo("Old Name");
     }
+
 
     @Test
     void update_EmailAlreadyExists_ShouldThrowAlreadyExistException() {
@@ -232,23 +278,45 @@ class UserServiceTest {
         Long userId = 1L;
         UserUpdateDTO updateDTO = new UserUpdateDTO("newemail@example.com", null);
         User existingUser = new User(userId, "oldemail@example.com", "User Name");
-        User updatedUser = new User(userId, "newemail@example.com", "User Name");
-        UserResponseDTO expectedResponse = UserMapper.mapToResponseDTO(updatedUser);
+
+        // Создаём ожидаемый результат — новый объект с обновлённым email, имя сохранено
+        User expectedUpdatedUser = new User(
+                userId,
+                "newemail@example.com",
+                "User Name"
+        );
+        UserResponseDTO expectedResponse = UserMapper.mapToResponseDTO(expectedUpdatedUser);
 
         when(userRepository.get(userId)).thenReturn(existingUser);
         when(userRepository.checkIfNotExists(userId)).thenReturn(false);
         when(userRepository.existsByEmail(updateDTO.email())).thenReturn(false);
-        when(userRepository.update(existingUser)).thenReturn(updatedUser);
+        // Указываем, что репозиторий должен вернуть ожидаемый обновлённый объект
+        when(userRepository.update(any(User.class))).thenReturn(expectedUpdatedUser);
 
         // When
         UserResponseDTO result = userService.update(userId, updateDTO);
 
         // Then
         assertThat(result).isEqualTo(expectedResponse);
-        assertThat(existingUser.getEmail()).isEqualTo("newemail@example.com");
-        assertThat(existingUser.getName()).isEqualTo("User Name"); // не изменилось
-        verify(userRepository, times(1)).update(existingUser);
+
+        // Проверяем, что update был вызван ровно один раз с любым объектом User
+        verify(userRepository, times(1)).update(any(User.class));
+
+        // Используем ArgumentCaptor для проверки переданного в update объекта
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).update(userCaptor.capture());
+        User capturedUser = userCaptor.getValue();
+
+        // Проверяем поля захваченного объекта — только email изменился
+        assertThat(capturedUser.id()).isEqualTo(userId);
+        assertThat(capturedUser.email()).isEqualTo("newemail@example.com"); // изменилось
+        assertThat(capturedUser.name()).isEqualTo("User Name"); // не изменилось
+
+        // Убеждаемся, что исходный объект не изменился (важно для record)
+        assertThat(existingUser.email()).isEqualTo("oldemail@example.com");
+        assertThat(existingUser.name()).isEqualTo("User Name");
     }
+
 
     @Test
     void update_OnlyName_ShouldUpdateName() {
@@ -256,20 +324,42 @@ class UserServiceTest {
         Long userId = 1L;
         UserUpdateDTO updateDTO = new UserUpdateDTO(null, "New Name");
         User existingUser = new User(userId, "email@example.com", "Old Name");
-        User updatedUser = new User(userId, "email@example.com", "New Name");
-        UserResponseDTO expectedResponse = UserMapper.mapToResponseDTO(updatedUser);
+
+        // Создаём ожидаемый результат — новый объект с обновлённым именем, email сохранён
+        User expectedUpdatedUser = new User(
+                userId,
+                "email@example.com",
+                "New Name"
+        );
+        UserResponseDTO expectedResponse = UserMapper.mapToResponseDTO(expectedUpdatedUser);
 
         when(userRepository.get(userId)).thenReturn(existingUser);
         when(userRepository.checkIfNotExists(userId)).thenReturn(false);
-        when(userRepository.update(existingUser)).thenReturn(updatedUser);
+        // Указываем, что репозиторий должен вернуть ожидаемый обновлённый объект
+        when(userRepository.update(any(User.class))).thenReturn(expectedUpdatedUser);
 
         // When
         UserResponseDTO result = userService.update(userId, updateDTO);
 
         // Then
         assertThat(result).isEqualTo(expectedResponse);
-        assertThat(existingUser.getEmail()).isEqualTo("email@example.com"); // не изменилось
-        assertThat(existingUser.getName()).isEqualTo("New Name");
-        verify(userRepository, times(1)).update(existingUser);
+
+        // Проверяем, что update был вызван ровно один раз с любым объектом User
+        verify(userRepository, times(1)).update(any(User.class));
+
+        // Используем ArgumentCaptor для проверки переданного в update объекта
+        ArgumentCaptor<User> userCaptor = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).update(userCaptor.capture());
+        User capturedUser = userCaptor.getValue();
+
+        // Проверяем поля захваченного объекта — только имя изменилось
+        assertThat(capturedUser.id()).isEqualTo(userId);
+        assertThat(capturedUser.email()).isEqualTo("email@example.com"); // не изменилось
+        assertThat(capturedUser.name()).isEqualTo("New Name"); // изменилось
+
+        // Убеждаемся, что исходный объект не изменился (важно для record)
+        assertThat(existingUser.email()).isEqualTo("email@example.com");
+        assertThat(existingUser.name()).isEqualTo("Old Name");
     }
+
 }

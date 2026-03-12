@@ -18,9 +18,9 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public User create(User user) {
         Long newId = nextId++;
-        User newUser = new User(newId, user.getEmail(), user.getName());
+        User newUser = new User(newId, user.email(), user.name());
         users.put(newId, newUser);
-        log.info("Создан пользователь с ID {}: {}", newId, newUser.getName());
+        log.info("Создан пользователь с ID {}: {}", newId, newUser.name());
         return newUser;
     }
 
@@ -31,9 +31,9 @@ public class UserRepositoryImpl implements UserRepository {
 
     @Override
     public User update(User newUser) {
-        Long userId = newUser.getId();
+        Long userId = newUser.id();
         users.put(userId, newUser);
-        log.info("Обновлён пользователь с ID {}: {}", userId, newUser.getName());
+        log.info("Обновлён пользователь с ID {}: {}", userId, newUser.name());
         return newUser;
     }
 
@@ -42,7 +42,7 @@ public class UserRepositoryImpl implements UserRepository {
         if (users.remove(id) != null) {
             log.info("Удален пользователь с ID {}", id);
         } else {
-            log.debug("Попытка удаления несуществующего пользователя с ID {}", id);
+            log.warn("Попытка удаления несуществующего пользователя с ID {}", id);
         }
     }
 
@@ -50,7 +50,7 @@ public class UserRepositoryImpl implements UserRepository {
     public boolean checkIfNotExists(Long id) {
         boolean notExists = !users.containsKey(id);
         if (notExists) {
-            log.debug("Пользователь с ID {} не найден в хранилище", id);
+            log.warn("Пользователь с ID {} не найден в хранилище", id);
         }
         return notExists;
     }
@@ -58,6 +58,6 @@ public class UserRepositoryImpl implements UserRepository {
     @Override
     public boolean existsByEmail(String email) {
         return users.values().stream()
-                .anyMatch(user -> user.getEmail().equalsIgnoreCase(email));
+                .anyMatch(user -> user.email().equalsIgnoreCase(email));
     }
 }

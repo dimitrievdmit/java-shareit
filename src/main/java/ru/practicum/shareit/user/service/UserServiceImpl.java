@@ -52,7 +52,7 @@ public class UserServiceImpl implements UserService {
         checkThatUserExists(id);
 
         User existingUser = userRepository.get(id);
-        String currentEmail = existingUser.getEmail();
+        String currentEmail = existingUser.email();
         String newEmail = userUpdateDTO.email();
 
         // Проверка: если email обновляется и отличается от текущего
@@ -64,9 +64,8 @@ public class UserServiceImpl implements UserService {
                 throw new AlreadyExistException(errText);
             }
         }
-
-        UserMapper.updateFromDTO(userUpdateDTO, existingUser);
-        User updatedUser = userRepository.update(existingUser);
+        User newUser = UserMapper.updateFromDTO(userUpdateDTO, existingUser);
+        User updatedUser = userRepository.update(newUser);
         return UserMapper.mapToResponseDTO(updatedUser);
     }
 

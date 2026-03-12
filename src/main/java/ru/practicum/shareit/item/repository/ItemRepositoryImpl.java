@@ -20,14 +20,14 @@ public class ItemRepositoryImpl implements ItemRepository {
         Long newId = nextId++;
         Item newItem = new Item(
                 newId,
-                item.getOwnerId(),
-                item.getName(),
-                item.getDescription(),
-                item.getAvailable(),
-                item.getRequestId()
+                item.ownerId(),
+                item.name(),
+                item.description(),
+                item.available(),
+                item.requestId()
         );
         items.put(newId, newItem);
-        log.info("Создана вещь с ID {}: {}", newId, newItem.getName());
+        log.info("Создана вещь с ID {}: {}", newId, newItem.name());
         return newItem;
     }
 
@@ -39,8 +39,8 @@ public class ItemRepositoryImpl implements ItemRepository {
     @Override
     public Collection<Item> getAllByOwner(Long ownerId) {
         List<Item> ownerItems = items.values().stream()
-                .filter(item -> item.getOwnerId().equals(ownerId))
-                .sorted(Comparator.comparing(Item::getId)) // сортировка по ID
+                .filter(item -> item.ownerId().equals(ownerId))
+                .sorted(Comparator.comparing(Item::id)) // сортировка по ID
                 .collect(Collectors.toList());
 
         log.info("Получен список из {} вещей для владельца с ID {}", ownerItems.size(), ownerId);
@@ -57,12 +57,12 @@ public class ItemRepositoryImpl implements ItemRepository {
         String searchText = text.toLowerCase().trim();
 
         List<Item> foundItems = items.values().stream()
-                .filter(Item::getAvailable) // только доступные для аренды
+                .filter(Item::available) // только доступные для аренды
                 .filter(item ->
-                        item.getName().toLowerCase().contains(searchText) ||
-                                item.getDescription().toLowerCase().contains(searchText)
+                        item.name().toLowerCase().contains(searchText) ||
+                                item.description().toLowerCase().contains(searchText)
                 )
-                .sorted(Comparator.comparing(Item::getId)) // сортировка по ID
+                .sorted(Comparator.comparing(Item::id)) // сортировка по ID
                 .collect(Collectors.toList());
 
         log.info("По запросу '{}' найдено {} доступных вещей", searchText, foundItems.size());
@@ -71,9 +71,9 @@ public class ItemRepositoryImpl implements ItemRepository {
 
     @Override
     public Item update(Item newItem) {
-        Long itemId = newItem.getId();
+        Long itemId = newItem.id();
         items.put(itemId, newItem);
-        log.info("Обновлена вещь с ID {}: {}", itemId, newItem.getName());
+        log.info("Обновлена вещь с ID {}: {}", itemId, newItem.name());
         return newItem;
     }
 
@@ -82,7 +82,7 @@ public class ItemRepositoryImpl implements ItemRepository {
         if (items.remove(id) != null) {
             log.info("Удалена вещь с ID {}", id);
         } else {
-            log.debug("Попытка удаления несуществующей вещи с ID {}", id);
+            log.warn("Попытка удаления несуществующей вещи с ID {}", id);
         }
     }
 
@@ -90,7 +90,7 @@ public class ItemRepositoryImpl implements ItemRepository {
     public boolean checkIfNotExists(Long id) {
         boolean notExists = !items.containsKey(id);
         if (notExists) {
-            log.debug("Вещь с ID {} не найдена в хранилище", id);
+            log.warn("Вещь с ID {} не найдена в хранилище", id);
         }
         return notExists;
     }

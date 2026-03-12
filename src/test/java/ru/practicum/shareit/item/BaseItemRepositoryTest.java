@@ -35,11 +35,11 @@ public abstract class BaseItemRepositoryTest {
         Item savedItem = itemRepository.create(item);
 
         // Then
-        assertNotNull(savedItem.getId());
-        assertEquals(ownerId1, savedItem.getOwnerId());
-        assertEquals("Test Item", savedItem.getName());
-        assertEquals("Description", savedItem.getDescription());
-        assertTrue(savedItem.getAvailable());
+        assertNotNull(savedItem.id());
+        assertEquals(ownerId1, savedItem.ownerId());
+        assertEquals("Test Item", savedItem.name());
+        assertEquals("Description", savedItem.description());
+        assertTrue(savedItem.available());
     }
 
     @Test
@@ -47,15 +47,15 @@ public abstract class BaseItemRepositoryTest {
         // Given
         Item item = new Item(null, ownerId1, "Item 1", "Desc 1", true, null);
         Item savedItem = itemRepository.create(item);
-        Long itemId = savedItem.getId();
+        Long itemId = savedItem.id();
 
         // When
         Item foundItem = itemRepository.get(itemId);
 
         // Then
         assertNotNull(foundItem);
-        assertEquals(itemId, foundItem.getId());
-        assertEquals("Item 1", foundItem.getName());
+        assertEquals(itemId, foundItem.id());
+        assertEquals("Item 1", foundItem.name());
     }
 
     @Test
@@ -85,8 +85,8 @@ public abstract class BaseItemRepositoryTest {
         assertEquals(2, ownerItems.size());
         // Проверяем сортировку по ID (saved1 должен быть первым)
         var itemsList = ownerItems.stream().toList();
-        assertEquals(saved1.getId(), itemsList.get(0).getId());
-        assertEquals(saved2.getId(), itemsList.get(1).getId());
+        assertEquals(saved1.id(), itemsList.get(0).id());
+        assertEquals(saved2.id(), itemsList.get(1).id());
     }
 
     @Test
@@ -115,7 +115,7 @@ public abstract class BaseItemRepositoryTest {
         // Then: должны найти только доступную вещь с "phone" в названии или описании
         assertEquals(1, foundItems.size());
         var foundItem = foundItems.iterator().next();
-        assertEquals("Phone", foundItem.getName());
+        assertEquals("Phone", foundItem.name());
     }
 
     @Test
@@ -154,7 +154,7 @@ public abstract class BaseItemRepositoryTest {
         // Given
         Item item = new Item(null, ownerId1, "Old Name", "Old Desc", true, null);
         Item savedItem = itemRepository.create(item);
-        Long itemId = savedItem.getId();
+        Long itemId = savedItem.id();
 
         // Создаём обновлённую версию
         Item updatedItem = new Item(itemId, ownerId1, "New Name", "New Desc", false, 10L);
@@ -163,11 +163,11 @@ public abstract class BaseItemRepositoryTest {
         Item result = itemRepository.update(updatedItem);
 
         // Then
-        assertEquals(itemId, result.getId());
-        assertEquals("New Name", result.getName());
-        assertEquals("New Desc", result.getDescription());
-        assertFalse(result.getAvailable());
-        assertEquals(10L, result.getRequestId());
+        assertEquals(itemId, result.id());
+        assertEquals("New Name", result.name());
+        assertEquals("New Desc", result.description());
+        assertFalse(result.available());
+        assertEquals(10L, result.requestId());
     }
 
     @Test
@@ -175,7 +175,7 @@ public abstract class BaseItemRepositoryTest {
         // Given
         Item item = new Item(null, ownerId1, "Delete Item", "To be deleted", true, null);
         Item savedItem = itemRepository.create(item);
-        Long itemId = savedItem.getId();
+        Long itemId = savedItem.id();
 
         // When
         itemRepository.delete(itemId);
@@ -198,7 +198,7 @@ public abstract class BaseItemRepositoryTest {
         Item savedItem = itemRepository.create(item);
 
         // When
-        boolean notExists = itemRepository.checkIfNotExists(savedItem.getId());
+        boolean notExists = itemRepository.checkIfNotExists(savedItem.id());
 
         // Then
         assertFalse(notExists);

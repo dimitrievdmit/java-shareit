@@ -15,9 +15,9 @@ public final class UserMapper {
      */
     public static UserResponseDTO mapToResponseDTO(User user) {
         return new UserResponseDTO(
-                user.getId(),
-                user.getEmail(),
-                user.getName()
+                user.id(),
+                user.email(),
+                user.name()
         );
     }
 
@@ -33,17 +33,24 @@ public final class UserMapper {
         );
     }
 
+
     /**
-     * Обновляет существующий объект User данными из UserUpdateDTO.
+     * Обновляет данные User, создавая новый экземпляр record на основе UserUpdateDTO.
      * Сохраняет неизменным ID.
-     * Учитывает, что поля могут быть null — обновляет только не‑null значения.
+     * Обновляет только не‑null значения.
+     *
+     * @param userUpdateDTO DTO с новыми данными пользователя (могут быть null)
+     * @param user          существующий пользователь, который будет использован как основа для нового объекта
+     * @return новый экземпляр User с обновлёнными данными
      */
-    public static void updateFromDTO(UserUpdateDTO userUpdateDTO, User user) {
-        if (userUpdateDTO.email() != null) {
-            user.setEmail(userUpdateDTO.email());
-        }
-        if (userUpdateDTO.name() != null && !userUpdateDTO.name().isBlank()) {
-            user.setName(userUpdateDTO.name());
-        }
+    public static User updateFromDTO(UserUpdateDTO userUpdateDTO, User user) {
+        return new User(
+                user.id(),
+                (userUpdateDTO.email() != null) ? userUpdateDTO.email() : user.email(),
+                (userUpdateDTO.name() != null && !userUpdateDTO.name().isBlank())
+                        ? userUpdateDTO.name()
+                        : user.name()
+        );
     }
+
 }

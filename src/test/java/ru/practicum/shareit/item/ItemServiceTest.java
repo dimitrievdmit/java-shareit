@@ -2,6 +2,7 @@ package ru.practicum.shareit.item;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -187,25 +188,52 @@ class ItemServiceTest {
         Long itemId = 1L;
         ItemUpdateDTO updateDTO = new ItemUpdateDTO("Updated Name", "Updated Description", false, 2L);
         Item existingItem = new Item(itemId, OWNER_ID, "Old Name", "Old Description", true, 1L);
-        Item updatedItem = new Item(itemId, OWNER_ID, "Updated Name", "Updated Description", false, 2L);
-        ItemResponseDTO expectedResponse = ItemMapper.mapToResponseDTO(updatedItem);
+
+        // Создаём ожидаемый результат — новый объект с обновлёнными данными
+        Item expectedUpdatedItem = new Item(
+                itemId,
+                OWNER_ID,
+                "Updated Name",
+                "Updated Description",
+                false,
+                2L
+        );
+        ItemResponseDTO expectedResponse = ItemMapper.mapToResponseDTO(expectedUpdatedItem);
 
         when(itemRepository.get(itemId)).thenReturn(existingItem);
         when(itemRepository.checkIfNotExists(itemId)).thenReturn(false);
         doNothing().when(userService).checkThatUserExists(OWNER_ID);
-        when(itemRepository.update(existingItem)).thenReturn(updatedItem);
+        // Указываем, что репозиторий должен вернуть ожидаемый обновлённый объект
+        when(itemRepository.update(any(Item.class))).thenReturn(expectedUpdatedItem);
 
         // When
         ItemResponseDTO result = itemService.update(itemId, OWNER_ID, updateDTO);
 
         // Then
         assertThat(result).isEqualTo(expectedResponse);
-        verify(itemRepository, times(1)).update(existingItem);
-        assertThat(existingItem.getName()).isEqualTo("Updated Name");
-        assertThat(existingItem.getDescription()).isEqualTo("Updated Description");
-        assertThat(existingItem.getAvailable()).isFalse();
-        assertThat(existingItem.getRequestId()).isEqualTo(2L);
+
+        // Проверяем, что update был вызван ровно один раз с любым объектом Item
+        verify(itemRepository, times(1)).update(any(Item.class));
+
+        // Дополнительно можем проверить, что переданный объект соответствует ожиданиям
+        ArgumentCaptor<Item> itemCaptor = ArgumentCaptor.forClass(Item.class);
+        verify(itemRepository).update(itemCaptor.capture());
+        Item capturedItem = itemCaptor.getValue();
+
+        assertThat(capturedItem.id()).isEqualTo(itemId);
+        assertThat(capturedItem.ownerId()).isEqualTo(OWNER_ID);
+        assertThat(capturedItem.name()).isEqualTo("Updated Name");
+        assertThat(capturedItem.description()).isEqualTo("Updated Description");
+        assertThat(capturedItem.available()).isFalse();
+        assertThat(capturedItem.requestId()).isEqualTo(2L);
+
+        // Убеждаемся, что исходный объект не изменился (важно для record)
+        assertThat(existingItem.name()).isEqualTo("Old Name");
+        assertThat(existingItem.description()).isEqualTo("Old Description");
+        assertThat(existingItem.available()).isTrue();
+        assertThat(existingItem.requestId()).isEqualTo(1L);
     }
+
 
     @Test
     void update_PartialUpdateWithOnlyName_ShouldUpdateOnlyName() {
@@ -213,24 +241,53 @@ class ItemServiceTest {
         Long itemId = 1L;
         ItemUpdateDTO partialUpdate = new ItemUpdateDTO("New Name", null, null, null);
         Item existingItem = new Item(itemId, OWNER_ID, "Old Name", "Description", true, 1L);
-        Item updatedItem = new Item(itemId, OWNER_ID, "New Name", "Description", true, 1L);
-        ItemResponseDTO expectedResponse = ItemMapper.mapToResponseDTO(updatedItem);
+
+        // Создаём ожидаемый результат — новый объект с обновлённым именем, остальные поля сохранены
+        Item expectedUpdatedItem = new Item(
+                itemId,
+                OWNER_ID,
+                "New Name",
+                "Description",
+                true,
+                1L
+        );
+        ItemResponseDTO expectedResponse = ItemMapper.mapToResponseDTO(expectedUpdatedItem);
 
         when(itemRepository.get(itemId)).thenReturn(existingItem);
         when(itemRepository.checkIfNotExists(itemId)).thenReturn(false);
         doNothing().when(userService).checkThatUserExists(OWNER_ID);
-        when(itemRepository.update(existingItem)).thenReturn(updatedItem);
+        // Указываем, что репозиторий должен вернуть ожидаемый обновлённый объект
+        when(itemRepository.update(any(Item.class))).thenReturn(expectedUpdatedItem);
 
         // When
         ItemResponseDTO result = itemService.update(itemId, OWNER_ID, partialUpdate);
 
         // Then
         assertThat(result).isEqualTo(expectedResponse);
-        assertThat(existingItem.getName()).isEqualTo("New Name");
-        assertThat(existingItem.getDescription()).isEqualTo("Description"); // не изменилось
-        assertThat(existingItem.getAvailable()).isTrue(); // не изменилось
-        assertThat(existingItem.getRequestId()).isEqualTo(1L); // не изменилось
+
+        // Проверяем, что update был вызван ровно один раз с любым объектом Item
+        verify(itemRepository, times(1)).update(any(Item.class));
+
+        // Используем ArgumentCaptor для проверки переданного в update объекта
+        ArgumentCaptor<Item> itemCaptor = ArgumentCaptor.forClass(Item.class);
+        verify(itemRepository).update(itemCaptor.capture());
+        Item capturedItem = itemCaptor.getValue();
+
+        // Проверяем, что новый объект содержит только обновлённое поле (имя), остальные сохранены
+        assertThat(capturedItem.id()).isEqualTo(itemId);
+        assertThat(capturedItem.ownerId()).isEqualTo(OWNER_ID);
+        assertThat(capturedItem.name()).isEqualTo("New Name");
+        assertThat(capturedItem.description()).isEqualTo("Description"); // не изменилось
+        assertThat(capturedItem.available()).isTrue(); // не изменилось
+        assertThat(capturedItem.requestId()).isEqualTo(1L); // не изменилось
+
+        // Убеждаемся, что исходный объект не изменился (важно для record)
+        assertThat(existingItem.name()).isEqualTo("Old Name");
+        assertThat(existingItem.description()).isEqualTo("Description");
+        assertThat(existingItem.available()).isTrue();
+        assertThat(existingItem.requestId()).isEqualTo(1L);
     }
+
 
     @Test
     void update_NonExistingItem_ShouldThrowNotFoundException() {
