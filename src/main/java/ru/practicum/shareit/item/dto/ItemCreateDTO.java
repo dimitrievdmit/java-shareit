@@ -1,17 +1,14 @@
-package ru.practicum.shareit.item.model;
+package ru.practicum.shareit.item.dto;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 import static ru.practicum.shareit.validator.Validator.MAX_DESCRIPTION_LENGTH;
 
 
-public record Item(
-        @Positive(message = "Ид должен быть больше 0")
-        Long id,
-
-        @NotNull(message = "Ид владельца не может быть пустым")
-        @Positive(message = "Ид владельца должен быть больше 0")
-        Long ownerId,
+public record ItemCreateDTO(
 
         @NotBlank(message = "Название не может быть пустым")
         String name,
@@ -24,6 +21,6 @@ public record Item(
         Boolean available,
 
         @Positive(message = "Ид запроса должен быть больше 0")
-        Long requestId) {
+        Long requestId
+) {
 }
-
