@@ -1,17 +1,36 @@
 package ru.practicum.shareit.item;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.item.repository.ItemRepository;
-import ru.practicum.shareit.item.repository.ItemRepositoryImpl;
 
+@DataJpaTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@ExtendWith(MockitoExtension.class)
 class ItemRepositoryImplTest extends BaseItemRepositoryTest {
 
-    @Override
-    protected ItemRepository createItemRepository() {
-        return new ItemRepositoryImpl();
+    @Autowired
+    private TestEntityManager entityManager;
+
+    @Autowired
+    private ItemRepository itemRepository;
+
+    @BeforeEach
+    @Transactional
+    void setUp() {
+        // Используем уже внедрённый репозиторий, не создаём новый
+        super.itemRepository = itemRepository;
+        entityManager.clear();
+    }
+
+    @AfterEach
+    @Transactional
+    void tearDown() {
+        itemRepository.deleteAll();
+        entityManager.clear();
     }
 }

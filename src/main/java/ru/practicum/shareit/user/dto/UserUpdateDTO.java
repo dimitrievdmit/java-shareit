@@ -9,6 +9,6 @@ public record UserUpdateDTO(
         @Email(message = "Электронная почта должна соответствовать формату электронного адреса")
         String email,
 
-        String name) {
+        String name) implements UserRequestDTO {
 
 }

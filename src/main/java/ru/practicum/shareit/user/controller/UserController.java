@@ -10,6 +10,9 @@ import ru.practicum.shareit.user.dto.UserCreateDTO;
 import ru.practicum.shareit.user.dto.UserResponseDTO;
 import ru.practicum.shareit.user.dto.UserUpdateDTO;
 
+import static ru.practicum.shareit.user.mapper.UserMapper.mapToDomain;
+import static ru.practicum.shareit.user.mapper.UserMapper.mapToResponseDTO;
+
 
 @SuppressWarnings("unused")
 @RestController
@@ -21,12 +24,12 @@ public class UserController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public UserResponseDTO create(@Valid @RequestBody UserCreateDTO user) {
-        return userService.create(user);
+        return mapToResponseDTO(userService.create(mapToDomain(user)));
     }
 
     @GetMapping("/{id}")
     public UserResponseDTO get(@PathVariable @Positive(message = "Ид должен быть больше 0") Long id) {
-        return userService.get(id);
+        return mapToResponseDTO(userService.get(id));
     }
 
     @PatchMapping("/{id}")
@@ -34,7 +37,7 @@ public class UserController {
             @PathVariable @Positive(message = "Ид должен быть больше 0") Long id,
             @Valid @RequestBody UserUpdateDTO newUser
     ) {
-        return userService.update(id, newUser);
+        return mapToResponseDTO(userService.update(id, mapToDomain(newUser)));
     }
 
     @DeleteMapping("/{id}")

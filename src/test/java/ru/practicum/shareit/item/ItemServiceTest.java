@@ -49,16 +49,16 @@ class ItemServiceTest {
         Item expectedItem = new Item(1L, OWNER_ID, "New Item", "Description", true, 1L);
         ItemResponseDTO expectedResponse = ItemMapper.mapToResponseDTO(expectedItem);
 
-        doNothing().when(userService).checkThatUserExists(OWNER_ID);
-        when(itemRepository.create(any(Item.class))).thenReturn(expectedItem);
+        doNothing().when(userService).throwIfNotExists(OWNER_ID);
+        when(itemRepository.save(any(Item.class))).thenReturn(expectedItem);
 
         // When
         ItemResponseDTO result = itemService.create(createDTO, OWNER_ID);
 
         // Then
         assertThat(result).isEqualTo(expectedResponse);
-        verify(userService, times(1)).checkThatUserExists(OWNER_ID);
-        verify(itemRepository, times(1)).create(any(Item.class));
+        verify(userService, times(1)).throwIfNotExists(OWNER_ID);
+        verify(itemRepository, times(1)).save(any(Item.class));
     }
 
     @Test
@@ -67,7 +67,7 @@ class ItemServiceTest {
         ItemCreateDTO createDTO = new ItemCreateDTO("New Item", "Description", true, 1L);
 
         doThrow(new NotFoundException("Пользователь с id = " + OWNER_ID + " не найден"))
-                .when(userService).checkThatUserExists(OWNER_ID);
+                .when(userService).throwIfNotExists(OWNER_ID);
 
         // When & Then
         assertThatThrownBy(() -> itemService.create(createDTO, OWNER_ID))
@@ -83,21 +83,21 @@ class ItemServiceTest {
         Item existingItem = new Item(EXISTING_ITEM_ID, OWNER_ID, "Item Name", "Description", true, 1L);
         ItemResponseDTO expectedResponse = ItemMapper.mapToResponseDTO(existingItem);
 
-        when(itemRepository.get(EXISTING_ITEM_ID)).thenReturn(existingItem);
-        when(itemRepository.checkIfNotExists(EXISTING_ITEM_ID)).thenReturn(false);
+        when(itemRepository.findById(EXISTING_ITEM_ID)).thenReturn(Optional.of(existingItem));
+        when(itemRepository.existsById(EXISTING_ITEM_ID)).thenReturn(true);
 
         // When
         ItemResponseDTO result = itemService.get(EXISTING_ITEM_ID);
 
         // Then
         assertThat(result).isEqualTo(expectedResponse);
-        verify(itemRepository).checkIfNotExists(EXISTING_ITEM_ID);
+        verify(itemRepository).existsById(EXISTING_ITEM_ID);
     }
 
     @Test
     void get_NonExistingItem_ShouldThrowNotFoundException() {
         // Given
-        when(itemRepository.checkIfNotExists(NON_EXISTING_ITEM_ID)).thenReturn(true);
+        when(itemRepository.existsById(NON_EXISTING_ITEM_ID)).thenReturn(false);
 
         // When & Then
         assertThatThrownBy(() -> itemService.get(NON_EXISTING_ITEM_ID))
@@ -116,8 +116,8 @@ class ItemServiceTest {
         );
         List<ItemResponseDTO> expectedResponses = ItemMapper.mapToResponseDTOList(ownerItems);
 
-        doNothing().when(userService).checkThatUserExists(OWNER_ID);
-        when(itemRepository.getAllByOwner(OWNER_ID)).thenReturn(ownerItems);
+        doNothing().when(userService).throwIfNotExists(OWNER_ID);
+        when(itemRepository.findAllByOwnerId(OWNER_ID)).thenReturn(ownerItems);
 
         // When
         Collection<ItemResponseDTO> result = itemService.getAllByOwner(OWNER_ID);
@@ -130,7 +130,7 @@ class ItemServiceTest {
     void getAllByOwner_OwnerDoesNotExist_ShouldThrowNotFoundException() {
         // Given
         doThrow(new NotFoundException("Пользователь с id = " + OWNER_ID + " не найден"))
-                .when(userService).checkThatUserExists(OWNER_ID);
+                .when(userService).throwIfNotExists(OWNER_ID);
 
         // When & Then
         assertThatThrownBy(() -> itemService.getAllByOwner(OWNER_ID))
@@ -147,7 +147,7 @@ class ItemServiceTest {
         List<Item> foundItems = List.of(new Item(1L, OWNER_ID, "Test Item", "Test Description", true, 1L));
         List<ItemResponseDTO> expectedResponses = ItemMapper.mapToResponseDTOList(foundItems);
 
-        when(itemRepository.search(searchText)).thenReturn(foundItems);
+        when(itemRepository.findByText(searchText)).thenReturn(foundItems);
 
         // When
         Collection<ItemResponseDTO> result = itemService.search(searchText);
@@ -160,7 +160,6 @@ class ItemServiceTest {
     void search_WithEmptyText_ShouldReturnEmptyList() {
         // Given
         String emptyText = "";
-        when(itemRepository.search(emptyText)).thenReturn(Collections.emptyList());
 
         // When
         Collection<ItemResponseDTO> result = itemService.search(emptyText);
@@ -171,8 +170,6 @@ class ItemServiceTest {
 
     @Test
     void search_WithNullText_ShouldReturnEmptyList() {
-        // Given
-        when(itemRepository.search(null)).thenReturn(Collections.emptyList());
 
         // When
         Collection<ItemResponseDTO> result = itemService.search(null);
@@ -200,11 +197,11 @@ class ItemServiceTest {
         );
         ItemResponseDTO expectedResponse = ItemMapper.mapToResponseDTO(expectedUpdatedItem);
 
-        when(itemRepository.get(itemId)).thenReturn(existingItem);
-        when(itemRepository.checkIfNotExists(itemId)).thenReturn(false);
-        doNothing().when(userService).checkThatUserExists(OWNER_ID);
+        when(itemRepository.findById(itemId)).thenReturn(Optional.of(existingItem));
+        when(itemRepository.existsById(itemId)).thenReturn(true);
+        doNothing().when(userService).throwIfNotExists(OWNER_ID);
         // Указываем, что репозиторий должен вернуть ожидаемый обновлённый объект
-        when(itemRepository.update(any(Item.class))).thenReturn(expectedUpdatedItem);
+        when(itemRepository.save(any(Item.class))).thenReturn(expectedUpdatedItem);
 
         // When
         ItemResponseDTO result = itemService.update(itemId, OWNER_ID, updateDTO);
@@ -213,25 +210,25 @@ class ItemServiceTest {
         assertThat(result).isEqualTo(expectedResponse);
 
         // Проверяем, что update был вызван ровно один раз с любым объектом Item
-        verify(itemRepository, times(1)).update(any(Item.class));
+        verify(itemRepository, times(1)).save(any(Item.class));
 
         // Дополнительно можем проверить, что переданный объект соответствует ожиданиям
         ArgumentCaptor<Item> itemCaptor = ArgumentCaptor.forClass(Item.class);
-        verify(itemRepository).update(itemCaptor.capture());
+        verify(itemRepository).save(itemCaptor.capture());
         Item capturedItem = itemCaptor.getValue();
 
-        assertThat(capturedItem.id()).isEqualTo(itemId);
-        assertThat(capturedItem.ownerId()).isEqualTo(OWNER_ID);
-        assertThat(capturedItem.name()).isEqualTo("Updated Name");
-        assertThat(capturedItem.description()).isEqualTo("Updated Description");
-        assertThat(capturedItem.available()).isFalse();
-        assertThat(capturedItem.requestId()).isEqualTo(2L);
+        assertThat(capturedItem.getId()).isEqualTo(itemId);
+        assertThat(capturedItem.getOwnerId()).isEqualTo(OWNER_ID);
+        assertThat(capturedItem.getName()).isEqualTo("Updated Name");
+        assertThat(capturedItem.getDescription()).isEqualTo("Updated Description");
+        assertThat(capturedItem.getAvailable()).isFalse();
+        assertThat(capturedItem.getRequestId()).isEqualTo(2L);
 
         // Убеждаемся, что исходный объект не изменился (важно для record)
-        assertThat(existingItem.name()).isEqualTo("Old Name");
-        assertThat(existingItem.description()).isEqualTo("Old Description");
-        assertThat(existingItem.available()).isTrue();
-        assertThat(existingItem.requestId()).isEqualTo(1L);
+        assertThat(existingItem.getName()).isEqualTo("Old Name");
+        assertThat(existingItem.getDescription()).isEqualTo("Old Description");
+        assertThat(existingItem.getAvailable()).isTrue();
+        assertThat(existingItem.getRequestId()).isEqualTo(1L);
     }
 
 
@@ -253,11 +250,11 @@ class ItemServiceTest {
         );
         ItemResponseDTO expectedResponse = ItemMapper.mapToResponseDTO(expectedUpdatedItem);
 
-        when(itemRepository.get(itemId)).thenReturn(existingItem);
-        when(itemRepository.checkIfNotExists(itemId)).thenReturn(false);
-        doNothing().when(userService).checkThatUserExists(OWNER_ID);
+        when(itemRepository.findById(itemId)).thenReturn(Optional.of(existingItem));
+        when(itemRepository.existsById(itemId)).thenReturn(true);
+        doNothing().when(userService).throwIfNotExists(OWNER_ID);
         // Указываем, что репозиторий должен вернуть ожидаемый обновлённый объект
-        when(itemRepository.update(any(Item.class))).thenReturn(expectedUpdatedItem);
+        when(itemRepository.save(any(Item.class))).thenReturn(expectedUpdatedItem);
 
         // When
         ItemResponseDTO result = itemService.update(itemId, OWNER_ID, partialUpdate);
@@ -266,33 +263,33 @@ class ItemServiceTest {
         assertThat(result).isEqualTo(expectedResponse);
 
         // Проверяем, что update был вызван ровно один раз с любым объектом Item
-        verify(itemRepository, times(1)).update(any(Item.class));
+        verify(itemRepository, times(1)).save(any(Item.class));
 
         // Используем ArgumentCaptor для проверки переданного в update объекта
         ArgumentCaptor<Item> itemCaptor = ArgumentCaptor.forClass(Item.class);
-        verify(itemRepository).update(itemCaptor.capture());
+        verify(itemRepository).save(itemCaptor.capture());
         Item capturedItem = itemCaptor.getValue();
 
         // Проверяем, что новый объект содержит только обновлённое поле (имя), остальные сохранены
-        assertThat(capturedItem.id()).isEqualTo(itemId);
-        assertThat(capturedItem.ownerId()).isEqualTo(OWNER_ID);
-        assertThat(capturedItem.name()).isEqualTo("New Name");
-        assertThat(capturedItem.description()).isEqualTo("Description"); // не изменилось
-        assertThat(capturedItem.available()).isTrue(); // не изменилось
-        assertThat(capturedItem.requestId()).isEqualTo(1L); // не изменилось
+        assertThat(capturedItem.getId()).isEqualTo(itemId);
+        assertThat(capturedItem.getOwnerId()).isEqualTo(OWNER_ID);
+        assertThat(capturedItem.getName()).isEqualTo("New Name");
+        assertThat(capturedItem.getDescription()).isEqualTo("Description"); // не изменилось
+        assertThat(capturedItem.getAvailable()).isTrue(); // не изменилось
+        assertThat(capturedItem.getRequestId()).isEqualTo(1L); // не изменилось
 
         // Убеждаемся, что исходный объект не изменился (важно для record)
-        assertThat(existingItem.name()).isEqualTo("Old Name");
-        assertThat(existingItem.description()).isEqualTo("Description");
-        assertThat(existingItem.available()).isTrue();
-        assertThat(existingItem.requestId()).isEqualTo(1L);
+        assertThat(existingItem.getName()).isEqualTo("Old Name");
+        assertThat(existingItem.getDescription()).isEqualTo("Description");
+        assertThat(existingItem.getAvailable()).isTrue();
+        assertThat(existingItem.getRequestId()).isEqualTo(1L);
     }
 
 
     @Test
     void update_NonExistingItem_ShouldThrowNotFoundException() {
         // Given
-        when(itemRepository.checkIfNotExists(NON_EXISTING_ITEM_ID)).thenReturn(true);
+        when(itemRepository.existsById(NON_EXISTING_ITEM_ID)).thenReturn(false);
 
         ItemUpdateDTO updateDTO = new ItemUpdateDTO("Updated Name", "Updated Description", false, 2L);
 
@@ -308,9 +305,9 @@ class ItemServiceTest {
         Long itemId = 1L;
         ItemUpdateDTO updateDTO = new ItemUpdateDTO("Updated Name", "Updated Description", false, 2L);
 
-        when(itemRepository.checkIfNotExists(itemId)).thenReturn(false);
+        when(itemRepository.existsById(itemId)).thenReturn(true);
         doThrow(new NotFoundException("Пользователь с id = " + OWNER_ID + " не найден"))
-                .when(userService).checkThatUserExists(OWNER_ID);
+                .when(userService).throwIfNotExists(OWNER_ID);
 
         // When & Then
         assertThatThrownBy(() -> itemService.update(itemId, OWNER_ID, updateDTO))
@@ -325,9 +322,9 @@ class ItemServiceTest {
         ItemUpdateDTO updateDTO = new ItemUpdateDTO("Updated Name", "Updated Description", false, 2L);
         Item existingItem = new Item(itemId, OWNER_ID, "Old Name", "Old Description", true, 1L);
 
-        when(itemRepository.get(itemId)).thenReturn(existingItem);
-        when(itemRepository.checkIfNotExists(itemId)).thenReturn(false);
-        doNothing().when(userService).checkThatUserExists(ANOTHER_OWNER_ID);
+        when(itemRepository.findById(itemId)).thenReturn(Optional.of(existingItem));
+        when(itemRepository.existsById(itemId)).thenReturn(true);
+        doNothing().when(userService).throwIfNotExists(ANOTHER_OWNER_ID);
 
         // When & Then
         assertThatThrownBy(() -> itemService.update(itemId, ANOTHER_OWNER_ID, updateDTO))
@@ -344,21 +341,21 @@ class ItemServiceTest {
         Long itemId = 1L;
         Item existingItem = new Item(itemId, OWNER_ID, "Item Name", "Description", true, 1L);
 
-        when(itemRepository.get(itemId)).thenReturn(existingItem);
-        when(itemRepository.checkIfNotExists(EXISTING_ITEM_ID)).thenReturn(false);
-        doNothing().when(userService).checkThatUserExists(OWNER_ID);
+        when(itemRepository.findById(itemId)).thenReturn(Optional.of(existingItem));
+        when(itemRepository.existsById(EXISTING_ITEM_ID)).thenReturn(true);
+        doNothing().when(userService).throwIfNotExists(OWNER_ID);
 
         // When
         itemService.delete(EXISTING_ITEM_ID, OWNER_ID);
 
         // Then
-        verify(itemRepository, times(1)).delete(EXISTING_ITEM_ID);
+        verify(itemRepository, times(1)).deleteById(EXISTING_ITEM_ID);
     }
 
     @Test
     void delete_NonExistingItem_ShouldThrowNotFoundException() {
         // Given
-        when(itemRepository.checkIfNotExists(NON_EXISTING_ITEM_ID)).thenReturn(true);
+        when(itemRepository.existsById(NON_EXISTING_ITEM_ID)).thenReturn(false);
 
         // When & Then
         assertThatThrownBy(() -> itemService.delete(NON_EXISTING_ITEM_ID, OWNER_ID))
@@ -369,9 +366,9 @@ class ItemServiceTest {
     @Test
     void delete_OwnerDoesNotExist_ShouldThrowNotFoundException() {
         // Given
-        when(itemRepository.checkIfNotExists(EXISTING_ITEM_ID)).thenReturn(false);
+        when(itemRepository.existsById(EXISTING_ITEM_ID)).thenReturn(true);
         doThrow(new NotFoundException("Пользователь с id = " + OWNER_ID + " не найден"))
-                .when(userService).checkThatUserExists(OWNER_ID);
+                .when(userService).throwIfNotExists(OWNER_ID);
 
         // When & Then
         assertThatThrownBy(() -> itemService.delete(EXISTING_ITEM_ID, OWNER_ID))
@@ -385,9 +382,9 @@ class ItemServiceTest {
         Long itemId = 1L;
         Item existingItem = new Item(itemId, OWNER_ID, "Item Name", "Description", true, 1L);
 
-        when(itemRepository.get(itemId)).thenReturn(existingItem);
-        when(itemRepository.checkIfNotExists(itemId)).thenReturn(false);
-        doNothing().when(userService).checkThatUserExists(ANOTHER_OWNER_ID);
+        when(itemRepository.findById(itemId)).thenReturn(Optional.of(existingItem));
+        when(itemRepository.existsById(itemId)).thenReturn(true);
+        doNothing().when(userService).throwIfNotExists(ANOTHER_OWNER_ID);
 
         // When & Then
         assertThatThrownBy(() -> itemService.delete(itemId, ANOTHER_OWNER_ID))
@@ -395,29 +392,29 @@ class ItemServiceTest {
                 .hasMessageContaining("Владелец с ID " + ANOTHER_OWNER_ID + " не имеет прав на выполнение операции с вещью с ID " + itemId);
 
         // Then — проверяем, что удаление не было выполнено
-        verify(itemRepository, never()).delete(itemId);
+        verify(itemRepository, never()).deleteById(itemId);
     }
 
     // --- Тесты для checkThatItemExists() ---
 
     @Test
-    void checkThatItemExists_ExistingItem_ShouldNotThrowException() {
+    void throwIfNot_ShouldNotThrowException() {
         // Given
-        when(itemRepository.checkIfNotExists(EXISTING_ITEM_ID)).thenReturn(false);
+        when(itemRepository.existsById(EXISTING_ITEM_ID)).thenReturn(true);
 
         // When
-        itemService.checkThatItemExists(EXISTING_ITEM_ID);
+        itemService.throwIfNotExists(EXISTING_ITEM_ID);
 
         // Then — если исключение не выброшено, тест пройден
     }
 
     @Test
-    void checkThatItemExists_NonExistingItem_ShouldThrowNotFoundException() {
+    void throwIfNot_ShouldThrowNotFoundException() {
         // Given
-        when(itemRepository.checkIfNotExists(NON_EXISTING_ITEM_ID)).thenReturn(true);
+        when(itemRepository.existsById(NON_EXISTING_ITEM_ID)).thenReturn(false);
 
         // When & Then
-        assertThatThrownBy(() -> itemService.checkThatItemExists(NON_EXISTING_ITEM_ID))
+        assertThatThrownBy(() -> itemService.throwIfNotExists(NON_EXISTING_ITEM_ID))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("Вещь с ID = " + NON_EXISTING_ITEM_ID + " не найдена");
     }

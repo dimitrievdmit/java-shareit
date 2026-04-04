@@ -18,5 +18,5 @@ public record ItemUpdateDTO(
 
         @Positive(message = "Ид запроса должен быть больше 0")
         Long requestId
-) {
+) implements ItemBaseRequestDTO {
 }

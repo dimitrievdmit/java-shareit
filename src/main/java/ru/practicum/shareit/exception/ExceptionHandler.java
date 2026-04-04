@@ -26,6 +26,19 @@ public class ExceptionHandler {
      и более подходящих кодов ответов.
     */
 
+
+    @org.springframework.web.bind.annotation.ExceptionHandler(ValidationException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ExceptionResponse handleValidationException(ValidationException e) {
+        ExceptionResponse errorResponse = new ExceptionResponse(
+                "Ошибка валидации",
+                e.getMessage()
+        );
+        log.error("Ошибка валидации: {}", e.getMessage());
+        return errorResponse;
+    }
+
+
     @org.springframework.web.bind.annotation.ExceptionHandler(MethodArgumentNotValidException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ExceptionResponse handleMethodArgumentNotValid(MethodArgumentNotValidException e) {

@@ -11,6 +11,6 @@ public record UserCreateDTO(
         String email,
 
         @NotBlank(message = "Имя не может быть пустым")
-        String name) {
+        String name) implements UserRequestDTO {
 
 }
