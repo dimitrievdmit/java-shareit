@@ -12,6 +12,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.NoSuchElementException;
 import java.util.stream.Collectors;
@@ -60,6 +61,30 @@ public class ExceptionHandler {
         String errorMessage = e.getConstraintViolations().stream()
                 .map(ConstraintViolation::getMessage)
                 .collect(Collectors.joining("; "));
+
+        ExceptionResponse errorResponse = new ExceptionResponse(
+                "Ошибка валидации: невалидный параметр",
+                errorMessage
+        );
+        log.error("Ошибка валидации параметра: {}", errorMessage);
+        return errorResponse;
+    }
+
+    @org.springframework.web.bind.annotation.ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ExceptionResponse handleMethodArgumentTypeMismatch(MethodArgumentTypeMismatchException e) {
+        String paramName = e.getName();
+        String invalidValue = e.getValue() == null ? "null" : e.getValue().toString();
+
+        // Определяем допустимые значения, если параметр является enum
+        String allowedValues = "";
+        if (e.getRequiredType() != null && e.getRequiredType().isEnum()) {
+            allowedValues = java.util.Arrays.toString(e.getRequiredType().getEnumConstants());
+        }
+
+        String errorMessage = String.format("Параметр '%s' со значением '%s' недопустим.%s",
+                paramName, invalidValue,
+                allowedValues.isEmpty() ? "" : " Допустимые значения: " + allowedValues);
 
         ExceptionResponse errorResponse = new ExceptionResponse(
                 "Ошибка валидации: невалидный параметр",

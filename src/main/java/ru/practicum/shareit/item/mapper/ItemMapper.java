@@ -3,11 +3,15 @@ package ru.practicum.shareit.item.mapper;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import ru.practicum.shareit.booking.model.Booking;
-import ru.practicum.shareit.item.dto.*;
-import ru.practicum.shareit.item.model.Comment;
+import ru.practicum.shareit.booking.model.BookingStatus;
+import ru.practicum.shareit.item.dto.comment.CommentResponseDTO;
+import ru.practicum.shareit.item.dto.item.ItemBaseRequestDTO;
+import ru.practicum.shareit.item.dto.item.ItemResponseDTO;
+import ru.practicum.shareit.item.dto.item.ItemUpdateDTO;
+import ru.practicum.shareit.item.dto.item.ItemWithBookingDTO;
 import ru.practicum.shareit.item.model.Item;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -32,8 +36,7 @@ public final class ItemMapper {
     }
 
     /**
-     * Преобразует ItemRequestDTO в доменную модель Item.
-     * ID не передаётся — будет получен из репозитория.
+     * Преобразует ItemBaseRequestDTO в доменную модель Item.
      */
     public static Item mapToDomain(ItemBaseRequestDTO itemBaseRequestDTO, Long ownerId) {
         return new Item(
@@ -49,21 +52,20 @@ public final class ItemMapper {
     /**
      * Обновляет данные объекта Item, создавая новый экземпляр на основе itemUpdate.
      * Сохраняет неизменным id и ownerId.
-     * Обновляет только не‑null поля.
+     * Обновляет только заполненные в запросе поля.
      */
-    public static Item updateFromDTO(Item itemUpdate, Item item) {
+    public static Item updateFromDTO(ItemUpdateDTO itemUpdate, Item item) {
         return new Item(
                 item.getId(),
                 item.getOwnerId(),
-                (itemUpdate.getName() != null) ? itemUpdate.getName() : item.getName(),
-                (itemUpdate.getDescription() != null && !itemUpdate.getDescription().isBlank())
-                        ? itemUpdate.getDescription()
+                (itemUpdate.name() != null) ? itemUpdate.name() : item.getName(),
+                (itemUpdate.description() != null && !itemUpdate.description().isBlank())
+                        ? itemUpdate.description()
                         : item.getDescription(),
-                (itemUpdate.getAvailable() != null) ? itemUpdate.getAvailable() : item.getAvailable(),
-                (itemUpdate.getRequestId() != null) ? itemUpdate.getRequestId() : item.getRequestId()
+                (itemUpdate.available() != null) ? itemUpdate.available() : item.getAvailable(),
+                (itemUpdate.requestId() != null) ? itemUpdate.requestId() : item.getRequestId()
         );
     }
-
 
     /**
      * Преобразует список доменных моделей Item в список ItemResponseDTO с сортировкой по ID.
@@ -75,28 +77,45 @@ public final class ItemMapper {
                 .collect(Collectors.toList());
     }
 
-    public static ItemWithCommentsDTO mapToItemWithCommentsDTO(Item item, List<Comment> comments) {
-        // Преобразовываем комментарии в DTO внутри маппера
-        List<CommentResponseDTO> commentDtos = CommentMapper.mapToResponseDTOList(comments, item);
-
-        return new ItemWithCommentsDTO(
+    /**
+     * Преобразует Item в ItemWithBookingDTO с комментариями и без бронирований
+     */
+    public static ItemWithBookingDTO mapToDTOWithoutBookings(Item item, List<CommentResponseDTO> commentDtos) {
+        return new ItemWithBookingDTO(
                 item.getId(),
                 item.getOwnerId(),
                 item.getName(),
                 item.getDescription(),
                 item.getAvailable(),
                 item.getRequestId(),
+                null,
+                null,
                 commentDtos
         );
     }
-    public static ItemWithBookingDTO mapToItemWithBookingDTO(Item item, List<Booking> bookings, List<CommentResponseDTO> commentDtos) {
-        Booking lastBooking = bookings.stream()
-                .filter(b -> b.getEnd().isBefore(Instant.now()))
+
+    /**
+     * Преобразует Item в ItemWithBookingDTO с комментариями и бронированиями
+     */
+    public static ItemWithBookingDTO mapToDTOWithBookings(Item item,
+                                                          List<Booking> bookings,
+                                                          List<CommentResponseDTO> commentDtos) {
+        LocalDateTime now = LocalDateTime.now();
+
+        // учитываем только APPROVED бронирования
+        List<Booking> approvedBookings = bookings.stream()
+                .filter(b -> b.getStatus() == BookingStatus.APPROVED)
+                .toList();
+
+        // lastBooking = последнее завершённое APPROVED
+        Booking lastBooking = approvedBookings.stream()
+                .filter(b -> b.getEnd().isBefore(now))
                 .max(Comparator.comparing(Booking::getEnd))
                 .orElse(null);
 
-        Booking nextBooking = bookings.stream()
-                .filter(b -> b.getStart().isAfter(Instant.now()))
+        // nextBooking = ближайшее будущее APPROVED
+        Booking nextBooking = approvedBookings.stream()
+                .filter(b -> b.getStart().isAfter(now))
                 .min(Comparator.comparing(Booking::getStart))
                 .orElse(null);
 
@@ -112,6 +131,4 @@ public final class ItemMapper {
                 commentDtos
         );
     }
-
-
 }

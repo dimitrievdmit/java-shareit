@@ -10,11 +10,11 @@ public record UserResponseDTO(
         @Positive(message = "Ид должен быть больше 0")
         Long id,
 
+        @NotBlank(message = "Имя не может быть пустым")
+        String name,
+
         @NotBlank(message = "Электронная почта не может быть пустой")
         @Email(message = "Электронная почта должна соответствовать формату электронного адреса")
-        String email,
-
-        @NotBlank(message = "Имя не может быть пустым")
-        String name) {
+        String email) {
 
 }

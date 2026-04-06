@@ -5,13 +5,15 @@ import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.shareit.item.dto.*;
-import ru.practicum.shareit.item.mapper.CommentMapper;
+import ru.practicum.shareit.item.dto.comment.CommentCreateDTO;
+import ru.practicum.shareit.item.dto.comment.CommentResponseDTO;
+import ru.practicum.shareit.item.dto.item.ItemCreateDTO;
+import ru.practicum.shareit.item.dto.item.ItemResponseDTO;
+import ru.practicum.shareit.item.dto.item.ItemUpdateDTO;
+import ru.practicum.shareit.item.dto.item.ItemWithBookingDTO;
 import ru.practicum.shareit.item.service.ItemService;
 
 import java.util.Collection;
-
-import static ru.practicum.shareit.item.mapper.ItemMapper.*;
 
 @SuppressWarnings("unused")
 @RestController
@@ -26,14 +28,15 @@ public class ItemController {
             @RequestHeader("X-Sharer-User-Id") @Positive(message = "Ид владельца должен быть больше 0") Long ownerId,
             @Valid @RequestBody ItemCreateDTO item
     ) {
-        return mapToResponseDTO(itemService.create(mapToDomain(item, ownerId)));
+        return itemService.create(item, ownerId);
     }
 
     @GetMapping("/{itemId}")
-    public ItemWithCommentsDTO get(
+    public ItemWithBookingDTO get(
+            @RequestHeader("X-Sharer-User-Id") @Positive(message = "Ид пользователя должен быть больше 0") Long userId,
             @PathVariable @Positive(message = "Ид вещи должен быть больше 0") Long itemId
     ) {
-        return itemService.get(itemId);
+        return itemService.get(itemId, userId);
     }
 
     @GetMapping
@@ -46,7 +49,7 @@ public class ItemController {
     @GetMapping("/search")
     public Collection<ItemResponseDTO> search(
             @RequestParam(name = "text") String text) {
-        return mapToResponseDTOList(itemService.search(text));
+        return itemService.search(text);
     }
 
     @PatchMapping("/{itemId}")
@@ -55,7 +58,7 @@ public class ItemController {
             @PathVariable @Positive(message = "Ид вещи должен быть больше 0") Long itemId,
             @Valid @RequestBody ItemUpdateDTO itemUpdateDTO
     ) {
-        return mapToResponseDTO(itemService.update(itemId, mapToDomain(itemUpdateDTO, ownerId)));
+        return itemService.update(itemId, ownerId, itemUpdateDTO);
     }
 
     @DeleteMapping("/{itemId}")
@@ -70,10 +73,10 @@ public class ItemController {
     @PostMapping("/{itemId}/comment")
     @ResponseStatus(HttpStatus.CREATED)
     public CommentResponseDTO createComment(
-            @RequestHeader("X-Sharer-User-Id") @Positive(message = "Ид владельца должен быть больше 0") Long userId,
+            @RequestHeader("X-Sharer-User-Id") @Positive(message = "Ид пользователя должен быть больше 0") Long userId,
             @PathVariable @Positive(message = "Ид вещи должен быть больше 0") Long itemId,
             @Valid @RequestBody CommentCreateDTO commentCreateDTO
     ) {
-        return CommentMapper.mapToResponseDTO(itemService.createComment(itemId, userId, commentCreateDTO.text()));
+        return itemService.createComment(itemId, userId, commentCreateDTO.text());
     }
 }

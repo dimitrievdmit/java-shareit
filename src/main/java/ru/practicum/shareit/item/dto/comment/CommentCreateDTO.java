@@ -1,4 +1,4 @@
-package ru.practicum.shareit.item.dto;
+package ru.practicum.shareit.item.dto.comment;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;

@@ -4,52 +4,69 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import ru.practicum.shareit.booking.dto.BookingCreateDTO;
+import ru.practicum.shareit.booking.dto.BookingResponseDTO;
 import ru.practicum.shareit.booking.model.BookingState;
 import ru.practicum.shareit.booking.model.BookingStatus;
 import ru.practicum.shareit.exception.*;
 import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.repository.BookingRepository;
 import ru.practicum.shareit.item.model.Item;
+import ru.practicum.shareit.item.repository.ItemRepository;
 import ru.practicum.shareit.item.service.ItemService;
+import ru.practicum.shareit.user.model.User;
+import ru.practicum.shareit.user.repository.UserRepository;
 import ru.practicum.shareit.user.service.UserService;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 import java.util.Collection;
 
+import static ru.practicum.shareit.booking.mapper.BookingMapper.*;
 import static ru.practicum.shareit.validator.Validator.*;
-
 
 @SuppressWarnings({"unused"})
 @Service
 @Slf4j
 @RequiredArgsConstructor
+@Transactional(readOnly = true) // Все методы по умолчанию только чтение
 public class BookingServiceImpl implements BookingService {
 
     private final BookingRepository bookingRepository;
+    private final ItemRepository itemRepository;
+    private final UserRepository userRepository;
     private final UserService userService;
     private final ItemService itemService;
 
     @Override
-    public Booking create(Booking booking, Long itemId, Long userId) {
-        log.info("Создание бронирования вещи {}", itemId);
+    @Transactional
+    public BookingResponseDTO create(BookingCreateDTO bookingCreateDTO, Long userId) {
+        log.info("Создание бронирования вещи {}", bookingCreateDTO.itemId());
 
         // ИД пользователя должен существовать, иначе выбросить 404.
         userService.throwIfNotExists(userId);
         // ИД вещи должен существовать, иначе выбросить 404.
-        itemService.throwIfNotExists(itemId);
+        itemService.throwIfNotExists(bookingCreateDTO.itemId());
         // start не может быть равен end, иначе выбросить 400.
-        throwIfStartEqualsEnd(booking.getStart(), booking.getEnd());
-        //    Если у бронируемой вещи поле available = false, то выбросить ошибку 400.
-//        Item fullItem = itemService.get(booking.item().id());
-        if (!booking.getItem().getAvailable()) {
+        throwIfStartEqualsEnd(bookingCreateDTO.start(), bookingCreateDTO.end());
+        // start не может быть позже end
+        throwIfStartAfterEnd(bookingCreateDTO.start(), bookingCreateDTO.end());
+
+        Item item = itemRepository.getReferenceById(bookingCreateDTO.itemId());
+        // Если у бронируемой вещи поле available = false, то выбросить ошибку 400.
+        if (!item.getAvailable()) {
             throw new ValidationException("Бронируемая вещь должна быть доступна для бронирования.");
         }
 
-        return bookingRepository.save(booking);
+        User user = userRepository.getReferenceById(userId);
+        Booking booking = mapCreateToDomain(bookingCreateDTO, item, user);
+
+        return mapToResponseDTO(bookingRepository.save(booking));
     }
 
     @Override
-    public Booking updateStatus(Long bookingId, Long userId, BookingStatus bookingStatus) {
+    @Transactional
+    public BookingResponseDTO updateStatus(Long bookingId, Long userId, BookingStatus bookingStatus) {
         log.info("Обновление статуса бронирования {}", bookingId);
         // Бронирование должно существовать. Иначе, ошибка 404.
         throwIfNotExists(bookingId);
@@ -62,11 +79,11 @@ public class BookingServiceImpl implements BookingService {
         userService.throwIfNotExists(userId);
 
         booking.setStatus(bookingStatus);
-        return bookingRepository.save(booking);
+        return mapToResponseDTO(bookingRepository.save(booking));
     }
 
     @Override
-    public Booking getById(Long bookingId, Long userId) {
+    public BookingResponseDTO getById(Long bookingId, Long userId) {
         log.info("Получение бронирования по ИД {}", bookingId);
         // Бронирование должно существовать. Иначе, ошибка 404.
         throwIfNotExists(bookingId);
@@ -75,69 +92,52 @@ public class BookingServiceImpl implements BookingService {
         // Может быть выполнено автором бронирования или владельцем вещи. Иначе, ошибка 403.
         Booking booking = bookingRepository.findById(bookingId).orElseThrow();
         throwIfNotBookerOrOwner(booking, userId);
-        return booking;
+        return mapToResponseDTO(booking);
     }
 
     @Override
-    public Collection<Booking> getByBooker(Long bookerId, BookingState state) {
+    public Collection<BookingResponseDTO> getByBooker(Long bookerId, BookingState state) {
         log.info("Получение бронирований пользователя {} с фильтром {}", bookerId, state);
         // ИД пользователя должен существовать, иначе выбросить 404.
         userService.throwIfNotExists(bookerId);
         // Бронирования должны возвращаться отсортированными по дате (старта) от более новых к более старым.
         Sort sort = Sort.by("start").descending();
-        switch (state) {
-            case BookingState.ALL:
-                return bookingRepository.findByBookerId(bookerId, sort);
-            case BookingState.PAST:
-            case BookingState.CURRENT:
-            case BookingState.FUTURE:
-                Instant date = Instant.now();
-                switch (state) {
-                    case BookingState.PAST:
-                        return bookingRepository.findByBookerIdAndEndIsBefore(bookerId, date, sort);
-                    case BookingState.CURRENT:
-                        return bookingRepository.findByBookerIdAndActiveOnDate(bookerId, date, sort);
-                    case BookingState.FUTURE:
-                        return bookingRepository.findByBookerIdAndStartIsAfter(bookerId, date, sort);
-                }
-            case BookingState.WAITING:
-                return bookingRepository.findByBookerIdAndStatusIs(bookerId, BookingStatus.WAITING, sort);
-            case BookingState.REJECTED:
-                return bookingRepository.findByBookerIdAndStatusIs(bookerId, BookingStatus.REJECTED, sort);
-            default:
-                throw new InternalServerException(String.format("Не найден маршрут для значения state %s", state));
-        }
+        Collection<Booking> bookings = switch (state) {
+            case BookingState.ALL -> bookingRepository.findByBookerId(bookerId, sort);
+            case BookingState.PAST ->
+                    bookingRepository.findByBookerIdAndEndIsBefore(bookerId, LocalDateTime.now(), sort);
+            case BookingState.CURRENT ->
+                    bookingRepository.findByBookerIdAndActiveOnDate(bookerId, LocalDateTime.now(), sort);
+            case BookingState.FUTURE ->
+                    bookingRepository.findByBookerIdAndStartIsAfter(bookerId, LocalDateTime.now(), sort);
+            case BookingState.WAITING ->
+                    bookingRepository.findByBookerIdAndStatusIs(bookerId, BookingStatus.WAITING, sort);
+            case BookingState.REJECTED ->
+                    bookingRepository.findByBookerIdAndStatusIs(bookerId, BookingStatus.REJECTED, sort);
+            default ->
+                    throw new InternalServerException(String.format("Не найден маршрут для значения state %s", state));
+        };
+        return mapToResponseDTOList(bookings);
     }
 
     @Override
-    public Collection<Booking> getByItemOwner(Long ownerId, BookingState state) {
+    public Collection<BookingResponseDTO> getByItemOwner(Long ownerId, BookingState state) {
         log.info("Получение бронирований вещей пользователя {} с фильтром {}", ownerId, state);
         // ИД пользователя должен существовать, иначе выбросить 404.
         userService.throwIfNotExists(ownerId);
         // Бронирования должны возвращаться отсортированными по дате (старта) от более новых к более старым.
         Sort sort = Sort.by("start").descending();
-        switch (state) {
-            case BookingState.ALL:
-                return bookingRepository.findByItemOwnerId(ownerId, sort);
-            case BookingState.PAST:
-            case BookingState.CURRENT:
-            case BookingState.FUTURE:
-                Instant date = Instant.now();
-                switch (state) {
-                    case BookingState.PAST:
-                        return bookingRepository.findByItemOwnerIdAndEndIsBefore(ownerId, date, sort);
-                    case BookingState.CURRENT:
-                        return bookingRepository.findByItemOwnerIdAndActiveOnDate(ownerId, date, sort);
-                    case BookingState.FUTURE:
-                        return bookingRepository.findByItemOwnerIdAndStartIsAfter(ownerId, date, sort);
-                }
-            case BookingState.WAITING:
-                return bookingRepository.findByItemOwnerIdAndStatusIs(ownerId, BookingStatus.WAITING, sort);
-            case BookingState.REJECTED:
-                return bookingRepository.findByItemOwnerIdAndStatusIs(ownerId, BookingStatus.REJECTED, sort);
-            default:
-                throw new InternalServerException(String.format("Не найден маршрут для значения state %s", state));
-        }
+        Collection<Booking> bookings = switch (state) {
+            case ALL -> bookingRepository.findByItemOwnerId(ownerId, sort);
+            case PAST -> bookingRepository.findByItemOwnerIdAndEndIsBefore(ownerId, LocalDateTime.now(), sort);
+            case CURRENT -> bookingRepository.findByItemOwnerIdAndActiveOnDate(ownerId, LocalDateTime.now(), sort);
+            case FUTURE -> bookingRepository.findByItemOwnerIdAndStartIsAfter(ownerId, LocalDateTime.now(), sort);
+            case WAITING -> bookingRepository.findByItemOwnerIdAndStatusIs(ownerId, BookingStatus.WAITING, sort);
+            case REJECTED -> bookingRepository.findByItemOwnerIdAndStatusIs(ownerId, BookingStatus.REJECTED, sort);
+            default ->
+                    throw new InternalServerException(String.format("Не найден маршрут для значения state %s", state));
+        };
+        return mapToResponseDTOList(bookings);
     }
 
     @Override
@@ -149,7 +149,6 @@ public class BookingServiceImpl implements BookingService {
             throw new NotFoundException(errText);
         }
     }
-
 
     private void throwIfNotBookerOrOwner(Booking booking, Long userId) {
         if (!booking.getBooker().getId().equals(userId) && !booking.getItem().getOwnerId().equals(userId)) {
@@ -164,5 +163,4 @@ public class BookingServiceImpl implements BookingService {
             throwUnauthorised(errText);
         }
     }
-
 }

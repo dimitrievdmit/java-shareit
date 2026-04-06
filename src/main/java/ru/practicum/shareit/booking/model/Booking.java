@@ -1,57 +1,44 @@
 package ru.practicum.shareit.booking.model;
 
-
 import jakarta.persistence.*;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.user.model.User;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "bookings")
-@NoArgsConstructor(force = true)
+@NoArgsConstructor
 @AllArgsConstructor
 @Getter
 @Setter
 public class Booking {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private @Positive(message = "Ид бронирования должен быть больше 0")
-    Long id;
+    private Long id;
 
     @Column(name = "start_date", nullable = false)
-    @NotNull(message = "Дата и время начала бронирования должна быть указана")
-    private Instant start;
+    private LocalDateTime start;
 
     @Column(name = "end_date", nullable = false)
-    @NotNull(message = "Дата и время конца бронирования должна быть указана")
-    private Instant end;
+    private LocalDateTime end;
 
     // По тестам в ТЗ не существует сценария, когда не нужно выгружать item.id и item.name.
     // В связи с этим, несмотря на рекомендации в уроках, наиболее логичный тип выгрузки здесь EAGER.
-    // Иначе, придётся переделать все методы Get на Query с JoinFetch,
+    // Иначе, придётся переделать все методы Get на Query с Join Fetch,
     // включая переопределение наследуемых стандартных JPA методов,
     // а также, отказаться от функционала запросных методов.
-    @ManyToOne(fetch = FetchType.EAGER)
-    @NotNull(message = "Бронируемая вещь должна быть указана")
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @JoinColumn(name = "item_id", nullable = false)
     private Item item;
 
     // По тестам в ТЗ не существует сценария, когда не нужно выгружать booker.id
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "booker_id")
-    @NotNull(message = "Пользователь, который осуществляет бронирование должен быть указан")
+    @ManyToOne(fetch = FetchType.EAGER, optional = false)
+    @JoinColumn(name = "booker_id", nullable = false)
     private User booker;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    @NotNull(message = "Статус бронирования должен быть указан")
     private BookingStatus status;
-
-
 }

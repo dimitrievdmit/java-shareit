@@ -1,4 +1,4 @@
-package ru.practicum.shareit.item.dto;
+package ru.practicum.shareit.item.dto.item;
 
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;

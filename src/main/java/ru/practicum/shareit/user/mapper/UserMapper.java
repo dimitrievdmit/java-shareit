@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import ru.practicum.shareit.user.dto.UserRequestDTO;
 import ru.practicum.shareit.user.dto.UserResponseDTO;
+import ru.practicum.shareit.user.dto.UserUpdateDTO;
 import ru.practicum.shareit.user.model.User;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
@@ -15,8 +16,8 @@ public final class UserMapper {
     public static UserResponseDTO mapToResponseDTO(User user) {
         return new UserResponseDTO(
                 user.getId(),
-                user.getEmail(),
-                user.getName()
+                user.getName(),
+                user.getEmail()
         );
     }
 
@@ -27,19 +28,8 @@ public final class UserMapper {
     public static User mapToDomain(UserRequestDTO userCreateDTO) {
         return new User(
                 null,
-                userCreateDTO.email(),
-                userCreateDTO.name()
-        );
-    }
-
-    /**
-     * Преобразует userResponseDTO в доменную модель User.
-     */
-    public static User mapResponseToDomain(UserResponseDTO userResponseDTO) {
-        return new User(
-                userResponseDTO.id(),
-                userResponseDTO.email(),
-                userResponseDTO.name()
+                userCreateDTO.name(),
+                userCreateDTO.email()
         );
     }
 
@@ -52,13 +42,13 @@ public final class UserMapper {
      * @param user       существующий пользователь, который будет использован как основа для нового объекта
      * @return новый экземпляр User с обновлёнными данными
      */
-    public static User updateFromDTO(User userUpdate, User user) {
+    public static User updateFromDTO(UserUpdateDTO userUpdate, User user) {
         return new User(
                 user.getId(),
-                (userUpdate.getEmail() != null) ? userUpdate.getEmail() : user.getEmail(),
-                (userUpdate.getName() != null && !userUpdate.getName().isBlank())
-                        ? userUpdate.getName()
-                        : user.getName()
+                (userUpdate.name() != null && !userUpdate.name().isBlank())
+                        ? userUpdate.name()
+                        : user.getName(),
+                (userUpdate.email() != null) ? userUpdate.email() : user.getEmail()
         );
     }
 

@@ -31,9 +31,9 @@ class UserControllerTest {
 
     private final ObjectMapper objectMapper;
 
-    private final UserResponseDTO testUser = new UserResponseDTO(1L, "test@yandex.ru", "Test User");
-    private final UserCreateDTO createDTO = new UserCreateDTO("test@yandex.ru", "Test User");
-    private final UserUpdateDTO updateDTO = new UserUpdateDTO("new@yandex.ru", "Updated Name");
+    private final UserResponseDTO testUser = new UserResponseDTO(1L, "Test User", "test@yandex.ru");
+    private final UserCreateDTO createDTO = new UserCreateDTO("Test User", "test@yandex.ru");
+    private final UserUpdateDTO updateDTO = new UserUpdateDTO("Updated Name", "new@yandex.ru");
 
     // --- Тесты для POST /users ---
 
@@ -46,15 +46,15 @@ class UserControllerTest {
                         .content(objectMapper.writeValueAsString(createDTO)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.email").value("test@yandex.ru"))
-                .andExpect(jsonPath("$.name").value("Test User"));
+                .andExpect(jsonPath("$.name").value("Test User"))
+                .andExpect(jsonPath("$.email").value("test@yandex.ru"));
 
         verify(userService, times(1)).create(any(UserCreateDTO.class));
     }
 
     @Test
     void createUser_EmptyEmail_ShouldReturnBadRequest() throws Exception {
-        UserCreateDTO invalidUser = new UserCreateDTO("", "Test User");
+        UserCreateDTO invalidUser = new UserCreateDTO("Test User", "");
 
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -66,7 +66,7 @@ class UserControllerTest {
 
     @Test
     void createUser_InvalidEmail_ShouldReturnBadRequest() throws Exception {
-        UserCreateDTO invalidUser = new UserCreateDTO("invalid-email", "Test User");
+        UserCreateDTO invalidUser = new UserCreateDTO("Test User", "invalid-email");
 
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -78,7 +78,7 @@ class UserControllerTest {
 
     @Test
     void createUser_EmptyName_ShouldReturnBadRequest() throws Exception {
-        UserCreateDTO invalidUser = new UserCreateDTO("test@yandex.ru", "");
+        UserCreateDTO invalidUser = new UserCreateDTO("", "test@yandex.ru");
 
         mockMvc.perform(post("/users")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -110,8 +110,8 @@ class UserControllerTest {
         mockMvc.perform(get("/users/1"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.email").value("test@yandex.ru"))
-                .andExpect(jsonPath("$.name").value("Test User"));
+                .andExpect(jsonPath("$.name").value("Test User"))
+                .andExpect(jsonPath("$.email").value("test@yandex.ru"));
 
         verify(userService, times(1)).get(1L);
     }
@@ -144,27 +144,25 @@ class UserControllerTest {
 
     // --- Тесты для PATCH /users/{id} ---
 
-
     @Test
     void updateUser_ValidData_ShouldReturnUpdatedUser() throws Exception {
         when(userService.update(1L, updateDTO)).thenReturn(
-                new UserResponseDTO(1L, "new@yandex.ru", "Updated Name"));
-
+                new UserResponseDTO(1L, "Updated Name", "new@yandex.ru"));
 
         mockMvc.perform(patch("/users/1")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(updateDTO)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.email").value("new@yandex.ru"))
-                .andExpect(jsonPath("$.name").value("Updated Name"));
+                .andExpect(jsonPath("$.name").value("Updated Name"))
+                .andExpect(jsonPath("$.email").value("new@yandex.ru"));
 
         verify(userService, times(1)).update(1L, updateDTO);
     }
 
     @Test
     void updateUser_InvalidEmailFormat_ShouldReturnBadRequest() throws Exception {
-        UserUpdateDTO invalidUpdate = new UserUpdateDTO("invalid-email", "Updated Name");
+        UserUpdateDTO invalidUpdate = new UserUpdateDTO("Updated Name", "invalid-email");
 
         mockMvc.perform(patch("/users/1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -222,8 +220,8 @@ class UserControllerTest {
 
     @Test
     void updateUser_PartialUpdateWithOnlyName_ShouldReturnUpdatedUser() throws Exception {
-        UserUpdateDTO partialUpdate = new UserUpdateDTO(null, "New Name");
-        UserResponseDTO expectedResponse = new UserResponseDTO(1L, "test@yandex.ru", "New Name");
+        UserUpdateDTO partialUpdate = new UserUpdateDTO("New Name", null);
+        UserResponseDTO expectedResponse = new UserResponseDTO(1L, "New Name", "test@yandex.ru");
 
         when(userService.update(1L, partialUpdate)).thenReturn(expectedResponse);
 
@@ -232,16 +230,16 @@ class UserControllerTest {
                         .content(objectMapper.writeValueAsString(partialUpdate)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.email").value("test@yandex.ru"))
-                .andExpect(jsonPath("$.name").value("New Name"));
+                .andExpect(jsonPath("$.name").value("New Name"))
+                .andExpect(jsonPath("$.email").value("test@yandex.ru"));
 
         verify(userService, times(1)).update(1L, partialUpdate);
     }
 
     @Test
     void updateUser_PartialUpdateWithOnlyEmail_ShouldReturnUpdatedUser() throws Exception {
-        UserUpdateDTO partialUpdate = new UserUpdateDTO("newemail@yandex.ru", null);
-        UserResponseDTO expectedResponse = new UserResponseDTO(1L, "newemail@yandex.ru", "Test User");
+        UserUpdateDTO partialUpdate = new UserUpdateDTO(null, "newemail@yandex.ru");
+        UserResponseDTO expectedResponse = new UserResponseDTO(1L, "Test User", "newemail@yandex.ru");
 
         when(userService.update(1L, partialUpdate)).thenReturn(expectedResponse);
 
@@ -250,8 +248,8 @@ class UserControllerTest {
                         .content(objectMapper.writeValueAsString(partialUpdate)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1L))
-                .andExpect(jsonPath("$.email").value("newemail@yandex.ru"))
-                .andExpect(jsonPath("$.name").value("Test User"));
+                .andExpect(jsonPath("$.name").value("Test User"))
+                .andExpect(jsonPath("$.email").value("newemail@yandex.ru"));
 
         verify(userService, times(1)).update(1L, partialUpdate);
     }

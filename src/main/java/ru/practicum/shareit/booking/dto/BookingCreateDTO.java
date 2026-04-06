@@ -6,7 +6,7 @@ import jakarta.validation.constraints.FutureOrPresent;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 
-import java.time.Instant;
+import java.time.LocalDateTime;
 
 /**
  * Валидация при создании:
@@ -26,11 +26,11 @@ public record BookingCreateDTO(
         @NotNull(message = "Дата и время начала бронирования должна быть указана")
         @FutureOrPresent(message = "Дата и время начала бронирования не может быть в прошлом")
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "UTC")
-        Instant start,
+        LocalDateTime start,
 
         @NotNull(message = "Дата и время конца бронирования должна быть указана")
         @FutureOrPresent(message = "Дата и время конца бронирования не может быть в прошлом")
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "UTC")
-        Instant end) {
+        LocalDateTime end) {
 
 }

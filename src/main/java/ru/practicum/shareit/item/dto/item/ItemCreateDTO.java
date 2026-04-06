@@ -1,4 +1,4 @@
-package ru.practicum.shareit.item.dto;
+package ru.practicum.shareit.item.dto.item;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -8,9 +8,7 @@ import jakarta.validation.constraints.Size;
 import static ru.practicum.shareit.validator.Validator.MAX_DESCRIPTION_LENGTH;
 
 
-public record ItemResponseDTO(
-        @Positive(message = "Ид должен быть больше 0")
-        Long id,
+public record ItemCreateDTO(
 
         @NotBlank(message = "Название не может быть пустым")
         String name,
@@ -24,5 +22,5 @@ public record ItemResponseDTO(
 
         @Positive(message = "Ид запроса должен быть больше 0")
         Long requestId
-) {
+) implements ItemBaseRequestDTO {
 }

@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.5.11</version>
+		<version>3.3.2</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 
@@ -17,7 +17,18 @@
 
 	<properties>
 		<java.version>21</java.version>
+		<checkstyle.version>9.3</checkstyle.version>
+		<checkstyle.plugin.version>3.1.2</checkstyle.plugin.version>
+		<spotbugs.version>4.8.6.2</spotbugs.version>
+		<jacoco.version>0.8.12</jacoco.version>
 	</properties>
+
+	<repositories>
+		<repository>
+			<id>central</id>
+			<url>https://repo.maven.apache.org/maven2</url>
+		</repository>
+	</repositories>
 
 	<dependencies>
 		<dependency>
@@ -102,7 +113,7 @@
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-checkstyle-plugin</artifactId>
-					<version>3.1.2</version>
+					<version>${checkstyle.plugin.version}</version>
 					<configuration>
 						<configLocation>checkstyle.xml</configLocation>
 						<failOnViolation>true</failOnViolation>
@@ -121,14 +132,14 @@
 						<dependency>
 							<groupId>com.puppycrawl.tools</groupId>
 							<artifactId>checkstyle</artifactId>
-							<version>10.3</version>
+							<version>${checkstyle.version}</version>
 						</dependency>
 					</dependencies>
 				</plugin>
 				<plugin>
 					<groupId>com.github.spotbugs</groupId>
 					<artifactId>spotbugs-maven-plugin</artifactId>
-					<version>4.8.5.0</version>
+					<version>${spotbugs.version}</version>
 					<configuration>
 						<effort>Max</effort>
 						<threshold>High</threshold>
@@ -144,7 +155,7 @@
 				<plugin>
 					<groupId>org.jacoco</groupId>
 					<artifactId>jacoco-maven-plugin</artifactId>
-					<version>0.8.12</version>
+					<version>${jacoco.version}</version>
 					<configuration>
 						<output>file</output>
 					</configuration>
@@ -212,9 +223,13 @@
 			</plugins>
 		</pluginManagement>
 	</build>
+
 	<profiles>
 		<profile>
 			<id>check</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
 			<build>
 				<plugins>
 					<plugin>
@@ -238,6 +253,9 @@
 		</profile>
 		<profile>
 			<id>coverage</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
 			<build>
 				<plugins>
 					<plugin>
