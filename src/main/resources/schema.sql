@@ -18,8 +18,7 @@ CREATE TABLE IF NOT EXISTS items (
     description VARCHAR(512) NOT NULL,
     is_available BOOLEAN NOT NULL,
     owner_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
-    request_id BIGINT REFERENCES requests(id) ON DELETE CASCADE,
-    CONSTRAINT pk_item PRIMARY KEY (id)
+    request_id BIGINT REFERENCES requests(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_items_owner_id ON items(owner_id);
 
