@@ -357,14 +357,14 @@ class ItemServiceTest {
     @Test
     void throwIfNotExists_WhenItemExists_ShouldNotThrow() {
         when(itemRepository.existsById(EXISTING_ITEM_ID)).thenReturn(true);
-        itemService.throwIfNotExists(EXISTING_ITEM_ID);
+        itemService.isExistsOrElseThrow(EXISTING_ITEM_ID);
         // no exception
     }
 
     @Test
     void throwIfNotExists_WhenItemDoesNotExist_ShouldThrowNotFoundException() {
         when(itemRepository.existsById(NON_EXISTING_ITEM_ID)).thenReturn(false);
-        assertThatThrownBy(() -> itemService.throwIfNotExists(NON_EXISTING_ITEM_ID))
+        assertThatThrownBy(() -> itemService.isExistsOrElseThrow(NON_EXISTING_ITEM_ID))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("Вещь с ID = " + NON_EXISTING_ITEM_ID + " не найдена");
     }

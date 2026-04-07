@@ -28,7 +28,7 @@ public interface ItemService {
     // Long ownerId - владелец вещи. Проверка: удалять вещь может только её владелец.
     void delete(Long id, Long ownerId);
 
-    void throwIfNotExists(Long id);
+    void isExistsOrElseThrow(Long id);
 
     // Вещь должна существовать. Иначе, ошибка 404.
     // Пользователь должен существовать, иначе выбросить 404.

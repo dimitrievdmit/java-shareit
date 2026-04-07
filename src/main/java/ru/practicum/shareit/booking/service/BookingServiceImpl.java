@@ -46,7 +46,7 @@ public class BookingServiceImpl implements BookingService {
         // ИД пользователя должен существовать, иначе выбросить 404.
         userService.throwIfNotExists(userId);
         // ИД вещи должен существовать, иначе выбросить 404.
-        itemService.throwIfNotExists(bookingCreateDTO.itemId());
+        itemService.isExistsOrElseThrow(bookingCreateDTO.itemId());
         // start не может быть равен end, иначе выбросить 400.
         throwIfStartEqualsEnd(bookingCreateDTO.start(), bookingCreateDTO.end());
         // start не может быть позже end
@@ -69,7 +69,7 @@ public class BookingServiceImpl implements BookingService {
     public BookingResponseDTO updateStatus(Long bookingId, Long userId, BookingStatus bookingStatus) {
         log.info("Обновление статуса бронирования {}", bookingId);
         // Бронирование должно существовать. Иначе, ошибка 404.
-        throwIfNotExists(bookingId);
+        isExistsOrElseThrow(bookingId);
 
         // Может быть выполнено только владельцем вещи. Иначе, ошибка 403.
         Booking booking = bookingRepository.findById(bookingId).orElseThrow();
@@ -86,7 +86,7 @@ public class BookingServiceImpl implements BookingService {
     public BookingResponseDTO getById(Long bookingId, Long userId) {
         log.info("Получение бронирования по ИД {}", bookingId);
         // Бронирование должно существовать. Иначе, ошибка 404.
-        throwIfNotExists(bookingId);
+        isExistsOrElseThrow(bookingId);
         // ИД пользователя должен существовать, иначе выбросить 404.
         userService.throwIfNotExists(userId);
         // Может быть выполнено автором бронирования или владельцем вещи. Иначе, ошибка 403.
@@ -141,7 +141,7 @@ public class BookingServiceImpl implements BookingService {
     }
 
     @Override
-    public void throwIfNotExists(Long id) {
+    public void isExistsOrElseThrow(Long id) {
         log.info("Проверить, что бронирование существует.");
         if (!bookingRepository.existsById(id)) {
             String errText = "Бронирование с id = " + id + " не найден";

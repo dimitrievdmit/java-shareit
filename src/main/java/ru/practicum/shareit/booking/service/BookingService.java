@@ -34,5 +34,5 @@ public interface BookingService {
     Collection<BookingResponseDTO> getByItemOwner(Long ownerId, BookingState state);
 
     // Проверка, что бронирование существует.
-    void throwIfNotExists(Long id);
+    void isExistsOrElseThrow(Long id);
 }

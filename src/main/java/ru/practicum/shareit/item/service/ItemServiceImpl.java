@@ -126,7 +126,6 @@ public class ItemServiceImpl implements ItemService {
      * Поиск вещей по тексту
      */
     @Override
-    @Transactional
     public Collection<ItemResponseDTO> search(String text) {
         log.info("Поиск вещей по тексту: '{}'", text);
 
@@ -146,7 +145,7 @@ public class ItemServiceImpl implements ItemService {
     public ItemResponseDTO update(Long itemId, Long ownerId, ItemUpdateDTO itemUpdate) {
         log.info("Обновление вещи для владельца с ID: {}", ownerId);
 
-        throwIfNotExists(itemId);
+        isExistsOrElseThrow(itemId);
         userService.throwIfNotExists(ownerId);
         throwIfNotOwner(itemId, ownerId);
 
@@ -163,7 +162,7 @@ public class ItemServiceImpl implements ItemService {
     public void delete(Long id, Long ownerId) {
         log.info("Удаление вещи с ID {} владельцем с ID {}", id, ownerId);
 
-        throwIfNotExists(id);
+        isExistsOrElseThrow(id);
         userService.throwIfNotExists(ownerId);
         throwIfNotOwner(id, ownerId);
         itemRepository.deleteById(id);
@@ -175,7 +174,7 @@ public class ItemServiceImpl implements ItemService {
     @Override
     @Transactional
     public CommentResponseDTO createComment(Long itemId, Long userId, String text) {
-        throwIfNotExists(itemId);
+        isExistsOrElseThrow(itemId);
         userService.throwIfNotExists(userId);
         throwIfNotPastBooker(itemId, userId);
 
@@ -190,7 +189,7 @@ public class ItemServiceImpl implements ItemService {
      * Проверяет, что вещь существует
      */
     @Override
-    public void throwIfNotExists(Long id) {
+    public void isExistsOrElseThrow(Long id) {
         if (!itemRepository.existsById(id)) {
             String errText = "Вещь с ID = " + id + " не найдена";
             log.error("Ошибка: {}", errText);

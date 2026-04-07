@@ -87,7 +87,7 @@ class BookingServiceImplTest {
         Booking savedBooking = createBooking(bookingId, dto.start(), dto.end(), BookingStatus.WAITING, item, booker);
 
         doNothing().when(userService).throwIfNotExists(userId);
-        doNothing().when(itemService).throwIfNotExists(itemId);
+        doNothing().when(itemService).isExistsOrElseThrow(itemId);
         when(itemRepository.getReferenceById(itemId)).thenReturn(item);
         when(userRepository.getReferenceById(userId)).thenReturn(booker);
         when(bookingRepository.save(any(Booking.class))).thenReturn(savedBooking);
@@ -112,7 +112,7 @@ class BookingServiceImplTest {
         Item item = createItem(itemId, ownerId, false);
 
         doNothing().when(userService).throwIfNotExists(userId);
-        doNothing().when(itemService).throwIfNotExists(itemId);
+        doNothing().when(itemService).isExistsOrElseThrow(itemId);
         when(itemRepository.getReferenceById(itemId)).thenReturn(item);
 
         assertThatThrownBy(() -> bookingService.create(dto, userId))
@@ -126,7 +126,7 @@ class BookingServiceImplTest {
         BookingCreateDTO dto = new BookingCreateDTO(itemId, start, start);
 
         doNothing().when(userService).throwIfNotExists(userId);
-        doNothing().when(itemService).throwIfNotExists(itemId);
+        doNothing().when(itemService).isExistsOrElseThrow(itemId);
 
         assertThatThrownBy(() -> bookingService.create(dto, userId))
                 .isInstanceOf(ValidationException.class)
@@ -138,7 +138,7 @@ class BookingServiceImplTest {
         BookingCreateDTO dto = new BookingCreateDTO(itemId, now.plusDays(2), now.plusDays(1));
 
         doNothing().when(userService).throwIfNotExists(userId);
-        doNothing().when(itemService).throwIfNotExists(itemId);
+        doNothing().when(itemService).isExistsOrElseThrow(itemId);
 
         assertThatThrownBy(() -> bookingService.create(dto, userId))
                 .isInstanceOf(ValidationException.class)
@@ -322,13 +322,13 @@ class BookingServiceImplTest {
     @Test
     void throwIfNotExists_WhenExists_ShouldNotThrow() {
         when(bookingRepository.existsById(bookingId)).thenReturn(true);
-        bookingService.throwIfNotExists(bookingId);
+        bookingService.isExistsOrElseThrow(bookingId);
     }
 
     @Test
     void throwIfNotExists_WhenNotExists_ShouldThrowNotFoundException() {
         when(bookingRepository.existsById(bookingId)).thenReturn(false);
-        assertThatThrownBy(() -> bookingService.throwIfNotExists(bookingId))
+        assertThatThrownBy(() -> bookingService.isExistsOrElseThrow(bookingId))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("Бронирование с id = " + bookingId + " не найден");
     }
