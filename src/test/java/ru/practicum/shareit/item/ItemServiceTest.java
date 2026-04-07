@@ -6,21 +6,36 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import ru.practicum.shareit.booking.model.Booking;
+import ru.practicum.shareit.booking.model.BookingStatus;
+import ru.practicum.shareit.booking.repository.BookingRepository;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.PermissionException;
-import ru.practicum.shareit.item.dto.ItemCreateDTO;
-import ru.practicum.shareit.item.dto.ItemResponseDTO;
-import ru.practicum.shareit.item.dto.ItemUpdateDTO;
+import ru.practicum.shareit.exception.ValidationException;
+import ru.practicum.shareit.item.dto.comment.CommentResponseDTO;
+import ru.practicum.shareit.item.dto.comment.CommentViewDTO;
+import ru.practicum.shareit.item.dto.item.ItemCreateDTO;
+import ru.practicum.shareit.item.dto.item.ItemResponseDTO;
+import ru.practicum.shareit.item.dto.item.ItemUpdateDTO;
+import ru.practicum.shareit.item.dto.item.ItemWithBookingDTO;
+import ru.practicum.shareit.item.mapper.CommentMapper;
 import ru.practicum.shareit.item.mapper.ItemMapper;
+import ru.practicum.shareit.item.model.Comment;
 import ru.practicum.shareit.item.model.Item;
+import ru.practicum.shareit.item.repository.CommentRepository;
 import ru.practicum.shareit.item.repository.ItemRepository;
 import ru.practicum.shareit.item.service.ItemServiceImpl;
+import ru.practicum.shareit.user.model.User;
+import ru.practicum.shareit.user.repository.UserRepository;
 import ru.practicum.shareit.user.service.UserService;
+import ru.practicum.shareit.validator.Validator;
 
+import java.time.LocalDateTime;
 import java.util.*;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -28,6 +43,15 @@ class ItemServiceTest {
 
     @Mock
     private ItemRepository itemRepository;
+
+    @Mock
+    private BookingRepository bookingRepository;
+
+    @Mock
+    private CommentRepository commentRepository;
+
+    @Mock
+    private UserRepository userRepository;
 
     @Mock
     private UserService userService;
@@ -39,37 +63,34 @@ class ItemServiceTest {
     private static final Long NON_EXISTING_ITEM_ID = 999L;
     private static final Long OWNER_ID = 100L;
     private static final Long ANOTHER_OWNER_ID = 200L;
+    private static final Long USER_ID = 300L;
+
+    private final LocalDateTime now = LocalDateTime.now();
 
     // --- Тесты для create() ---
 
     @Test
     void create_ValidData_ShouldCreateItem() {
-        // Given
         ItemCreateDTO createDTO = new ItemCreateDTO("New Item", "Description", true, 1L);
         Item expectedItem = new Item(1L, OWNER_ID, "New Item", "Description", true, 1L);
         ItemResponseDTO expectedResponse = ItemMapper.mapToResponseDTO(expectedItem);
 
-        doNothing().when(userService).checkThatUserExists(OWNER_ID);
-        when(itemRepository.create(any(Item.class))).thenReturn(expectedItem);
+        doNothing().when(userService).throwIfNotExists(OWNER_ID);
+        when(itemRepository.save(any(Item.class))).thenReturn(expectedItem);
 
-        // When
         ItemResponseDTO result = itemService.create(createDTO, OWNER_ID);
 
-        // Then
         assertThat(result).isEqualTo(expectedResponse);
-        verify(userService, times(1)).checkThatUserExists(OWNER_ID);
-        verify(itemRepository, times(1)).create(any(Item.class));
+        verify(userService).throwIfNotExists(OWNER_ID);
+        verify(itemRepository).save(any(Item.class));
     }
 
     @Test
     void create_OwnerDoesNotExist_ShouldThrowNotFoundException() {
-        // Given
         ItemCreateDTO createDTO = new ItemCreateDTO("New Item", "Description", true, 1L);
-
         doThrow(new NotFoundException("Пользователь с id = " + OWNER_ID + " не найден"))
-                .when(userService).checkThatUserExists(OWNER_ID);
+                .when(userService).throwIfNotExists(OWNER_ID);
 
-        // When & Then
         assertThatThrownBy(() -> itemService.create(createDTO, OWNER_ID))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("Пользователь с id = " + OWNER_ID + " не найден");
@@ -78,29 +99,50 @@ class ItemServiceTest {
     // --- Тесты для get() ---
 
     @Test
-    void get_ExistingItem_ShouldReturnItem() {
-        // Given
-        Item existingItem = new Item(EXISTING_ITEM_ID, OWNER_ID, "Item Name", "Description", true, 1L);
-        ItemResponseDTO expectedResponse = ItemMapper.mapToResponseDTO(existingItem);
+    void get_ExistingItem_ByOwner_ShouldReturnItemWithBookings() {
+        Item item = new Item(EXISTING_ITEM_ID, OWNER_ID, "Item", "Desc", true, 1L);
+        List<CommentResponseDTO> comments = List.of(new CommentResponseDTO(1L, "text", "author", now));
+        List<Booking> bookings = List.of(
+                createBooking(1L, now.minusDays(2), now.minusDays(1), BookingStatus.APPROVED, item),
+                createBooking(2L, now.plusDays(1), now.plusDays(2), BookingStatus.APPROVED, item)
+        );
 
-        when(itemRepository.get(EXISTING_ITEM_ID)).thenReturn(existingItem);
-        when(itemRepository.checkIfNotExists(EXISTING_ITEM_ID)).thenReturn(false);
+        when(itemRepository.findById(EXISTING_ITEM_ID)).thenReturn(Optional.of(item));
+        when(commentRepository.findByItemIdWithAuthor(EXISTING_ITEM_ID)).thenReturn(comments);
+        when(bookingRepository.findByItemIdWithItem(EXISTING_ITEM_ID)).thenReturn(bookings);
 
-        // When
-        ItemResponseDTO result = itemService.get(EXISTING_ITEM_ID);
+        ItemWithBookingDTO result = itemService.get(EXISTING_ITEM_ID, OWNER_ID);
 
-        // Then
-        assertThat(result).isEqualTo(expectedResponse);
-        verify(itemRepository).checkIfNotExists(EXISTING_ITEM_ID);
+        assertThat(result.id()).isEqualTo(EXISTING_ITEM_ID);
+        assertThat(result.ownerId()).isEqualTo(OWNER_ID);
+        assertThat(result.lastBooking()).isNotNull();
+        assertThat(result.nextBooking()).isNotNull();
+        assertThat(result.comments()).hasSize(1);
+        verify(bookingRepository).findByItemIdWithItem(EXISTING_ITEM_ID);
+    }
+
+    @Test
+    void get_ExistingItem_ByNonOwner_ShouldReturnItemWithoutBookings() {
+        Item item = new Item(EXISTING_ITEM_ID, OWNER_ID, "Item", "Desc", true, 1L);
+        List<CommentResponseDTO> comments = List.of(new CommentResponseDTO(1L, "text", "author", now));
+
+        when(itemRepository.findById(EXISTING_ITEM_ID)).thenReturn(Optional.of(item));
+        when(commentRepository.findByItemIdWithAuthor(EXISTING_ITEM_ID)).thenReturn(comments);
+
+        ItemWithBookingDTO result = itemService.get(EXISTING_ITEM_ID, USER_ID);
+
+        assertThat(result.id()).isEqualTo(EXISTING_ITEM_ID);
+        assertThat(result.lastBooking()).isNull();
+        assertThat(result.nextBooking()).isNull();
+        assertThat(result.comments()).hasSize(1);
+        verify(bookingRepository, never()).findByItemIdWithItem(anyLong());
     }
 
     @Test
     void get_NonExistingItem_ShouldThrowNotFoundException() {
-        // Given
-        when(itemRepository.checkIfNotExists(NON_EXISTING_ITEM_ID)).thenReturn(true);
+        when(itemRepository.findById(NON_EXISTING_ITEM_ID)).thenReturn(Optional.empty());
 
-        // When & Then
-        assertThatThrownBy(() -> itemService.get(NON_EXISTING_ITEM_ID))
+        assertThatThrownBy(() -> itemService.get(NON_EXISTING_ITEM_ID, USER_ID))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("Вещь с ID = " + NON_EXISTING_ITEM_ID + " не найдена");
     }
@@ -108,195 +150,124 @@ class ItemServiceTest {
     // --- Тесты для getAllByOwner() ---
 
     @Test
-    void getAllByOwner_ExistingOwner_ShouldReturnItems() {
-        // Given
-        List<Item> ownerItems = Arrays.asList(
-                new Item(1L, OWNER_ID, "Item 1", "Desc 1", true, 1L),
-                new Item(2L, OWNER_ID, "Item 2", "Desc 2", false, 2L)
+    void getAllByOwner_ExistingOwner_ShouldReturnItemsWithBookingsAndComments() {
+        Item item1 = new Item(1L, OWNER_ID, "Item1", "Desc1", true, 1L);
+        Item item2 = new Item(2L, OWNER_ID, "Item2", "Desc2", false, null);
+        List<Item> items = List.of(item1, item2);
+
+        List<Booking> bookings = List.of(
+                createBooking(10L, now.minusDays(3), now.minusDays(2), BookingStatus.APPROVED, item1),
+                createBooking(11L, now.plusDays(1), now.plusDays(2), BookingStatus.APPROVED, item1)
         );
-        List<ItemResponseDTO> expectedResponses = ItemMapper.mapToResponseDTOList(ownerItems);
+        List<CommentViewDTO> commentViews = List.of(
+                new CommentViewDTO(101L, "comment1", 1L, "User1", now),
+                new CommentViewDTO(102L, "comment2", 2L, "User2", now)
+        );
 
-        doNothing().when(userService).checkThatUserExists(OWNER_ID);
-        when(itemRepository.getAllByOwner(OWNER_ID)).thenReturn(ownerItems);
+        doNothing().when(userService).throwIfNotExists(OWNER_ID);
+        when(itemRepository.findAllByOwnerId(OWNER_ID)).thenReturn(items);
+        when(bookingRepository.findByItemIdsWithItem(List.of(1L, 2L))).thenReturn(bookings);
+        when(commentRepository.findByItemIdsWithAuthorNameAndItemId(List.of(1L, 2L))).thenReturn(commentViews);
 
-        // When
-        Collection<ItemResponseDTO> result = itemService.getAllByOwner(OWNER_ID);
+        List<ItemWithBookingDTO> result = itemService.getAllByOwner(OWNER_ID);
 
-        // Then
-        assertThat(result).containsExactlyElementsOf(expectedResponses);
+        assertThat(result).hasSize(2);
+        ItemWithBookingDTO dto1 = result.stream().filter(d -> d.id().equals(1L)).findFirst().orElseThrow();
+        assertThat(dto1.lastBooking()).isNotNull();
+        assertThat(dto1.nextBooking()).isNotNull();
+        assertThat(dto1.comments()).hasSize(1);
+
+        ItemWithBookingDTO dto2 = result.stream().filter(d -> d.id().equals(2L)).findFirst().orElseThrow();
+        assertThat(dto2.lastBooking()).isNull();
+        assertThat(dto2.nextBooking()).isNull();
+        assertThat(dto2.comments()).hasSize(1);
     }
 
     @Test
     void getAllByOwner_OwnerDoesNotExist_ShouldThrowNotFoundException() {
-        // Given
         doThrow(new NotFoundException("Пользователь с id = " + OWNER_ID + " не найден"))
-                .when(userService).checkThatUserExists(OWNER_ID);
+                .when(userService).throwIfNotExists(OWNER_ID);
 
-        // When & Then
         assertThatThrownBy(() -> itemService.getAllByOwner(OWNER_ID))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("Пользователь с id = " + OWNER_ID + " не найден");
+    }
+
+    @Test
+    void getAllByOwner_NoItems_ShouldReturnEmptyList() {
+        doNothing().when(userService).throwIfNotExists(OWNER_ID);
+        when(itemRepository.findAllByOwnerId(OWNER_ID)).thenReturn(Collections.emptyList());
+
+        List<ItemWithBookingDTO> result = itemService.getAllByOwner(OWNER_ID);
+        assertThat(result).isEmpty();
+        verify(bookingRepository, never()).findByItemIdsWithItem(anyList());
+        verify(commentRepository, never()).findByItemIdsWithAuthorNameAndItemId(anyList());
     }
 
     // --- Тесты для search() ---
 
     @Test
     void search_WithValidText_ShouldReturnMatchingItems() {
-        // Given
         String searchText = "test";
-        List<Item> foundItems = List.of(new Item(1L, OWNER_ID, "Test Item", "Test Description", true, 1L));
+        Item item = new Item(1L, OWNER_ID, "Test Item", "Test Desc", true, 1L);
+        List<Item> foundItems = List.of(item);
         List<ItemResponseDTO> expectedResponses = ItemMapper.mapToResponseDTOList(foundItems);
 
-        when(itemRepository.search(searchText)).thenReturn(foundItems);
+        when(itemRepository.findByText(searchText)).thenReturn(foundItems);
 
-        // When
         Collection<ItemResponseDTO> result = itemService.search(searchText);
 
-        // Then
         assertThat(result).containsExactlyElementsOf(expectedResponses);
+        verify(itemRepository).findByText(searchText);
     }
 
     @Test
     void search_WithEmptyText_ShouldReturnEmptyList() {
-        // Given
-        String emptyText = "";
-        when(itemRepository.search(emptyText)).thenReturn(Collections.emptyList());
-
-        // When
-        Collection<ItemResponseDTO> result = itemService.search(emptyText);
-
-        // Then
+        Collection<ItemResponseDTO> result = itemService.search("");
         assertThat(result).isEmpty();
+        verify(itemRepository, never()).findByText(anyString());
     }
 
     @Test
     void search_WithNullText_ShouldReturnEmptyList() {
-        // Given
-        when(itemRepository.search(null)).thenReturn(Collections.emptyList());
-
-        // When
         Collection<ItemResponseDTO> result = itemService.search(null);
-
-        // Then
         assertThat(result).isEmpty();
+        verify(itemRepository, never()).findByText(anyString());
     }
 
     // --- Тесты для update() ---
+
     @Test
     void update_ExistingItemByOwner_ShouldUpdateItem() {
-        // Given
         Long itemId = 1L;
         ItemUpdateDTO updateDTO = new ItemUpdateDTO("Updated Name", "Updated Description", false, 2L);
         Item existingItem = new Item(itemId, OWNER_ID, "Old Name", "Old Description", true, 1L);
+        Item updatedItem = new Item(itemId, OWNER_ID, "Updated Name", "Updated Description", false, 2L);
+        ItemResponseDTO expectedResponse = ItemMapper.mapToResponseDTO(updatedItem);
 
-        // Создаём ожидаемый результат — новый объект с обновлёнными данными
-        Item expectedUpdatedItem = new Item(
-                itemId,
-                OWNER_ID,
-                "Updated Name",
-                "Updated Description",
-                false,
-                2L
-        );
-        ItemResponseDTO expectedResponse = ItemMapper.mapToResponseDTO(expectedUpdatedItem);
+        when(itemRepository.existsById(itemId)).thenReturn(true);
+        doNothing().when(userService).throwIfNotExists(OWNER_ID);
+        when(itemRepository.findById(itemId)).thenReturn(Optional.of(existingItem));
+        when(itemRepository.save(any(Item.class))).thenReturn(updatedItem);
 
-        when(itemRepository.get(itemId)).thenReturn(existingItem);
-        when(itemRepository.checkIfNotExists(itemId)).thenReturn(false);
-        doNothing().when(userService).checkThatUserExists(OWNER_ID);
-        // Указываем, что репозиторий должен вернуть ожидаемый обновлённый объект
-        when(itemRepository.update(any(Item.class))).thenReturn(expectedUpdatedItem);
-
-        // When
         ItemResponseDTO result = itemService.update(itemId, OWNER_ID, updateDTO);
 
-        // Then
         assertThat(result).isEqualTo(expectedResponse);
-
-        // Проверяем, что update был вызван ровно один раз с любым объектом Item
-        verify(itemRepository, times(1)).update(any(Item.class));
-
-        // Дополнительно можем проверить, что переданный объект соответствует ожиданиям
-        ArgumentCaptor<Item> itemCaptor = ArgumentCaptor.forClass(Item.class);
-        verify(itemRepository).update(itemCaptor.capture());
-        Item capturedItem = itemCaptor.getValue();
-
-        assertThat(capturedItem.id()).isEqualTo(itemId);
-        assertThat(capturedItem.ownerId()).isEqualTo(OWNER_ID);
-        assertThat(capturedItem.name()).isEqualTo("Updated Name");
-        assertThat(capturedItem.description()).isEqualTo("Updated Description");
-        assertThat(capturedItem.available()).isFalse();
-        assertThat(capturedItem.requestId()).isEqualTo(2L);
-
-        // Убеждаемся, что исходный объект не изменился (важно для record)
-        assertThat(existingItem.name()).isEqualTo("Old Name");
-        assertThat(existingItem.description()).isEqualTo("Old Description");
-        assertThat(existingItem.available()).isTrue();
-        assertThat(existingItem.requestId()).isEqualTo(1L);
+        verify(itemRepository).save(any(Item.class));
+        ArgumentCaptor<Item> captor = ArgumentCaptor.forClass(Item.class);
+        verify(itemRepository).save(captor.capture());
+        Item savedItem = captor.getValue();
+        assertThat(savedItem.getName()).isEqualTo("Updated Name");
+        assertThat(savedItem.getDescription()).isEqualTo("Updated Description");
+        assertThat(savedItem.getAvailable()).isFalse();
+        assertThat(savedItem.getRequestId()).isEqualTo(2L);
     }
-
-
-    @Test
-    void update_PartialUpdateWithOnlyName_ShouldUpdateOnlyName() {
-        // Given
-        Long itemId = 1L;
-        ItemUpdateDTO partialUpdate = new ItemUpdateDTO("New Name", null, null, null);
-        Item existingItem = new Item(itemId, OWNER_ID, "Old Name", "Description", true, 1L);
-
-        // Создаём ожидаемый результат — новый объект с обновлённым именем, остальные поля сохранены
-        Item expectedUpdatedItem = new Item(
-                itemId,
-                OWNER_ID,
-                "New Name",
-                "Description",
-                true,
-                1L
-        );
-        ItemResponseDTO expectedResponse = ItemMapper.mapToResponseDTO(expectedUpdatedItem);
-
-        when(itemRepository.get(itemId)).thenReturn(existingItem);
-        when(itemRepository.checkIfNotExists(itemId)).thenReturn(false);
-        doNothing().when(userService).checkThatUserExists(OWNER_ID);
-        // Указываем, что репозиторий должен вернуть ожидаемый обновлённый объект
-        when(itemRepository.update(any(Item.class))).thenReturn(expectedUpdatedItem);
-
-        // When
-        ItemResponseDTO result = itemService.update(itemId, OWNER_ID, partialUpdate);
-
-        // Then
-        assertThat(result).isEqualTo(expectedResponse);
-
-        // Проверяем, что update был вызван ровно один раз с любым объектом Item
-        verify(itemRepository, times(1)).update(any(Item.class));
-
-        // Используем ArgumentCaptor для проверки переданного в update объекта
-        ArgumentCaptor<Item> itemCaptor = ArgumentCaptor.forClass(Item.class);
-        verify(itemRepository).update(itemCaptor.capture());
-        Item capturedItem = itemCaptor.getValue();
-
-        // Проверяем, что новый объект содержит только обновлённое поле (имя), остальные сохранены
-        assertThat(capturedItem.id()).isEqualTo(itemId);
-        assertThat(capturedItem.ownerId()).isEqualTo(OWNER_ID);
-        assertThat(capturedItem.name()).isEqualTo("New Name");
-        assertThat(capturedItem.description()).isEqualTo("Description"); // не изменилось
-        assertThat(capturedItem.available()).isTrue(); // не изменилось
-        assertThat(capturedItem.requestId()).isEqualTo(1L); // не изменилось
-
-        // Убеждаемся, что исходный объект не изменился (важно для record)
-        assertThat(existingItem.name()).isEqualTo("Old Name");
-        assertThat(existingItem.description()).isEqualTo("Description");
-        assertThat(existingItem.available()).isTrue();
-        assertThat(existingItem.requestId()).isEqualTo(1L);
-    }
-
 
     @Test
     void update_NonExistingItem_ShouldThrowNotFoundException() {
-        // Given
-        when(itemRepository.checkIfNotExists(NON_EXISTING_ITEM_ID)).thenReturn(true);
+        when(itemRepository.existsById(NON_EXISTING_ITEM_ID)).thenReturn(false);
+        ItemUpdateDTO updateDTO = new ItemUpdateDTO("Name", "Desc", true, 1L);
 
-        ItemUpdateDTO updateDTO = new ItemUpdateDTO("Updated Name", "Updated Description", false, 2L);
-
-        // When & Then
         assertThatThrownBy(() -> itemService.update(NON_EXISTING_ITEM_ID, OWNER_ID, updateDTO))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("Вещь с ID = " + NON_EXISTING_ITEM_ID + " не найдена");
@@ -304,63 +275,52 @@ class ItemServiceTest {
 
     @Test
     void update_OwnerDoesNotExist_ShouldThrowNotFoundException() {
-        // Given
-        Long itemId = 1L;
-        ItemUpdateDTO updateDTO = new ItemUpdateDTO("Updated Name", "Updated Description", false, 2L);
-
-        when(itemRepository.checkIfNotExists(itemId)).thenReturn(false);
+        when(itemRepository.existsById(EXISTING_ITEM_ID)).thenReturn(true);
         doThrow(new NotFoundException("Пользователь с id = " + OWNER_ID + " не найден"))
-                .when(userService).checkThatUserExists(OWNER_ID);
+                .when(userService).throwIfNotExists(OWNER_ID);
+        ItemUpdateDTO updateDTO = new ItemUpdateDTO("Name", "Desc", true, 1L);
 
-        // When & Then
-        assertThatThrownBy(() -> itemService.update(itemId, OWNER_ID, updateDTO))
+        assertThatThrownBy(() -> itemService.update(EXISTING_ITEM_ID, OWNER_ID, updateDTO))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("Пользователь с id = " + OWNER_ID + " не найден");
     }
 
     @Test
     void update_AnotherOwnerTriesToUpdate_ShouldThrowPermissionException() {
-        // Given
         Long itemId = 1L;
         ItemUpdateDTO updateDTO = new ItemUpdateDTO("Updated Name", "Updated Description", false, 2L);
         Item existingItem = new Item(itemId, OWNER_ID, "Old Name", "Old Description", true, 1L);
 
-        when(itemRepository.get(itemId)).thenReturn(existingItem);
-        when(itemRepository.checkIfNotExists(itemId)).thenReturn(false);
-        doNothing().when(userService).checkThatUserExists(ANOTHER_OWNER_ID);
+        when(itemRepository.existsById(itemId)).thenReturn(true);
+        doNothing().when(userService).throwIfNotExists(ANOTHER_OWNER_ID);
+        when(itemRepository.findById(itemId)).thenReturn(Optional.of(existingItem));
 
-        // When & Then
+        String expectedMessage = String.format(Validator.ITEM_PERMISSION_ERR_TEXT, ANOTHER_OWNER_ID, itemId);
         assertThatThrownBy(() -> itemService.update(itemId, ANOTHER_OWNER_ID, updateDTO))
                 .isInstanceOf(PermissionException.class)
-                .hasMessageContaining("Владелец с ID " + ANOTHER_OWNER_ID + " не имеет прав на выполнение операции с вещью с ID " + itemId);
+                .hasMessageContaining(expectedMessage);
     }
 
     // --- Тесты для delete() ---
 
-
     @Test
     void delete_ExistingItemByOwner_ShouldDeleteItem() {
-        // Given
         Long itemId = 1L;
-        Item existingItem = new Item(itemId, OWNER_ID, "Item Name", "Description", true, 1L);
+        Item existingItem = new Item(itemId, OWNER_ID, "Item", "Desc", true, 1L);
 
-        when(itemRepository.get(itemId)).thenReturn(existingItem);
-        when(itemRepository.checkIfNotExists(EXISTING_ITEM_ID)).thenReturn(false);
-        doNothing().when(userService).checkThatUserExists(OWNER_ID);
+        when(itemRepository.existsById(itemId)).thenReturn(true);
+        doNothing().when(userService).throwIfNotExists(OWNER_ID);
+        when(itemRepository.findById(itemId)).thenReturn(Optional.of(existingItem));
 
-        // When
-        itemService.delete(EXISTING_ITEM_ID, OWNER_ID);
+        itemService.delete(itemId, OWNER_ID);
 
-        // Then
-        verify(itemRepository, times(1)).delete(EXISTING_ITEM_ID);
+        verify(itemRepository).deleteById(itemId);
     }
 
     @Test
     void delete_NonExistingItem_ShouldThrowNotFoundException() {
-        // Given
-        when(itemRepository.checkIfNotExists(NON_EXISTING_ITEM_ID)).thenReturn(true);
+        when(itemRepository.existsById(NON_EXISTING_ITEM_ID)).thenReturn(false);
 
-        // When & Then
         assertThatThrownBy(() -> itemService.delete(NON_EXISTING_ITEM_ID, OWNER_ID))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("Вещь с ID = " + NON_EXISTING_ITEM_ID + " не найдена");
@@ -368,12 +328,10 @@ class ItemServiceTest {
 
     @Test
     void delete_OwnerDoesNotExist_ShouldThrowNotFoundException() {
-        // Given
-        when(itemRepository.checkIfNotExists(EXISTING_ITEM_ID)).thenReturn(false);
+        when(itemRepository.existsById(EXISTING_ITEM_ID)).thenReturn(true);
         doThrow(new NotFoundException("Пользователь с id = " + OWNER_ID + " не найден"))
-                .when(userService).checkThatUserExists(OWNER_ID);
+                .when(userService).throwIfNotExists(OWNER_ID);
 
-        // When & Then
         assertThatThrownBy(() -> itemService.delete(EXISTING_ITEM_ID, OWNER_ID))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("Пользователь с id = " + OWNER_ID + " не найден");
@@ -381,46 +339,110 @@ class ItemServiceTest {
 
     @Test
     void delete_AnotherOwnerTriesToDelete_ShouldThrowPermissionException() {
-        // Given
         Long itemId = 1L;
-        Item existingItem = new Item(itemId, OWNER_ID, "Item Name", "Description", true, 1L);
+        Item existingItem = new Item(itemId, OWNER_ID, "Item", "Desc", true, 1L);
 
-        when(itemRepository.get(itemId)).thenReturn(existingItem);
-        when(itemRepository.checkIfNotExists(itemId)).thenReturn(false);
-        doNothing().when(userService).checkThatUserExists(ANOTHER_OWNER_ID);
+        when(itemRepository.existsById(itemId)).thenReturn(true);
+        doNothing().when(userService).throwIfNotExists(ANOTHER_OWNER_ID);
+        when(itemRepository.findById(itemId)).thenReturn(Optional.of(existingItem));
 
-        // When & Then
+        String expectedMessage = String.format(Validator.ITEM_PERMISSION_ERR_TEXT, ANOTHER_OWNER_ID, itemId);
         assertThatThrownBy(() -> itemService.delete(itemId, ANOTHER_OWNER_ID))
                 .isInstanceOf(PermissionException.class)
-                .hasMessageContaining("Владелец с ID " + ANOTHER_OWNER_ID + " не имеет прав на выполнение операции с вещью с ID " + itemId);
-
-        // Then — проверяем, что удаление не было выполнено
-        verify(itemRepository, never()).delete(itemId);
+                .hasMessageContaining(expectedMessage);
     }
 
-    // --- Тесты для checkThatItemExists() ---
+    // --- Тесты для throwIfNotExists() ---
 
     @Test
-    void checkThatItemExists_ExistingItem_ShouldNotThrowException() {
-        // Given
-        when(itemRepository.checkIfNotExists(EXISTING_ITEM_ID)).thenReturn(false);
-
-        // When
-        itemService.checkThatItemExists(EXISTING_ITEM_ID);
-
-        // Then — если исключение не выброшено, тест пройден
+    void throwIfNotExists_WhenItemExists_ShouldNotThrow() {
+        when(itemRepository.existsById(EXISTING_ITEM_ID)).thenReturn(true);
+        itemService.isExistsOrElseThrow(EXISTING_ITEM_ID);
+        // no exception
     }
 
     @Test
-    void checkThatItemExists_NonExistingItem_ShouldThrowNotFoundException() {
-        // Given
-        when(itemRepository.checkIfNotExists(NON_EXISTING_ITEM_ID)).thenReturn(true);
-
-        // When & Then
-        assertThatThrownBy(() -> itemService.checkThatItemExists(NON_EXISTING_ITEM_ID))
+    void throwIfNotExists_WhenItemDoesNotExist_ShouldThrowNotFoundException() {
+        when(itemRepository.existsById(NON_EXISTING_ITEM_ID)).thenReturn(false);
+        assertThatThrownBy(() -> itemService.isExistsOrElseThrow(NON_EXISTING_ITEM_ID))
                 .isInstanceOf(NotFoundException.class)
                 .hasMessageContaining("Вещь с ID = " + NON_EXISTING_ITEM_ID + " не найдена");
     }
 
-    // --- Дополнительные тесты валидации бизнес‑логики ---
+    // --- Тесты для createComment() ---
+
+    @Test
+    void createComment_ValidData_ShouldCreateComment() {
+        Long itemId = 1L;
+        Long userId = 100L;
+        String text = "Great item!";
+        Item item = new Item(itemId, OWNER_ID, "Item", "Desc", true, null);
+        User user = new User(userId, "User", "user@mail.com");
+        Comment savedComment = new Comment(10L, text, item, user, now);
+        CommentResponseDTO expectedResponse = CommentMapper.mapToResponseDTO(savedComment);
+
+        when(itemRepository.existsById(itemId)).thenReturn(true);
+        doNothing().when(userService).throwIfNotExists(userId);
+        when(bookingRepository.findPastApprovedBookingsByItemIdAndBookerId(eq(itemId), eq(userId), any(LocalDateTime.class)))
+                .thenReturn(List.of(new Booking()));
+        when(itemRepository.getReferenceById(itemId)).thenReturn(item);
+        when(userRepository.getReferenceById(userId)).thenReturn(user);
+        when(commentRepository.save(any(Comment.class))).thenReturn(savedComment);
+
+        CommentResponseDTO result = itemService.createComment(itemId, userId, text);
+
+        assertThat(result).isEqualTo(expectedResponse);
+        verify(commentRepository).save(any(Comment.class));
+        ArgumentCaptor<Comment> captor = ArgumentCaptor.forClass(Comment.class);
+        verify(commentRepository).save(captor.capture());
+        Comment captured = captor.getValue();
+        assertThat(captured.getText()).isEqualTo(text);
+        assertThat(captured.getItem()).isEqualTo(item);
+        assertThat(captured.getAuthor()).isEqualTo(user);
+    }
+
+    @Test
+    void createComment_ItemNotFound_ShouldThrowNotFoundException() {
+        when(itemRepository.existsById(NON_EXISTING_ITEM_ID)).thenReturn(false);
+
+        assertThatThrownBy(() -> itemService.createComment(NON_EXISTING_ITEM_ID, USER_ID, "text"))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("Вещь с ID = " + NON_EXISTING_ITEM_ID + " не найдена");
+    }
+
+    @Test
+    void createComment_UserNotFound_ShouldThrowNotFoundException() {
+        when(itemRepository.existsById(EXISTING_ITEM_ID)).thenReturn(true);
+        doThrow(new NotFoundException("Пользователь с id = " + USER_ID + " не найден"))
+                .when(userService).throwIfNotExists(USER_ID);
+
+        assertThatThrownBy(() -> itemService.createComment(EXISTING_ITEM_ID, USER_ID, "text"))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessageContaining("Пользователь с id = " + USER_ID + " не найден");
+    }
+
+    @Test
+    void createComment_UserNeverBooked_ShouldThrowPermissionException() {
+        Long itemId = 1L;
+        Long userId = 100L;
+        when(itemRepository.existsById(itemId)).thenReturn(true);
+        doNothing().when(userService).throwIfNotExists(userId);
+        when(bookingRepository.findPastApprovedBookingsByItemIdAndBookerId(eq(itemId), eq(userId), any(LocalDateTime.class)))
+                .thenReturn(Collections.emptyList());
+
+        assertThatThrownBy(() -> itemService.createComment(itemId, userId, "text"))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining(Validator.COMMENT_CREATE_VALIDATION_ERR_TEXT);
+    }
+
+    // --- Вспомогательные методы ---
+    private Booking createBooking(Long id, LocalDateTime start, LocalDateTime end, BookingStatus status, Item item) {
+        Booking booking = new Booking();
+        booking.setId(id);
+        booking.setStart(start);
+        booking.setEnd(end);
+        booking.setStatus(status);
+        booking.setItem(item);
+        return booking;
+    }
 }

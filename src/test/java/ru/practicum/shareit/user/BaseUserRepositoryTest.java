@@ -2,11 +2,13 @@ package ru.practicum.shareit.user;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.user.model.User;
 import ru.practicum.shareit.user.repository.UserRepository;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+@Transactional
 abstract class BaseUserRepositoryTest {
 
     protected UserRepository userRepository;
@@ -17,183 +19,132 @@ abstract class BaseUserRepositoryTest {
 
     @BeforeEach
     void setUp() {
-        userRepository = createUserRepository();
+        userRepository.deleteAll();
     }
-
-    /**
-     * Фабричный метод для создания конкретной реализации репозитория.
-     * Должен быть переопределён в имплементациях.
-     */
-    protected abstract UserRepository createUserRepository();
 
     @Test
     void create_ValidUser_ShouldReturnUserWithGeneratedId() {
-        // Given
-        User user = new User(null, email1, name1);
+        User user = new User(null, name1, email1);
+        User savedUser = userRepository.save(user);
 
-        // When
-        User savedUser = userRepository.create(user);
-
-        // Then
-        assertNotNull(savedUser.id());
-        assertEquals(email1, savedUser.email());
-        assertEquals(name1, savedUser.name());
+        assertNotNull(savedUser.getId());
+        assertEquals(name1, savedUser.getName());
+        assertEquals(email1, savedUser.getEmail());
     }
 
     @Test
     void get_ExistingUser_ShouldReturnUser() {
-        // Given
-        User user = new User(null, email1, name1);
-        User savedUser = userRepository.create(user);
-        Long userId = savedUser.id();
+        User user = new User(null, name1, email1);
+        User savedUser = userRepository.save(user);
+        Long userId = savedUser.getId();
 
-        // When
-        User foundUser = userRepository.get(userId);
+        User foundUser = userRepository.findById(userId).orElse(null);
 
-        // Then
         assertNotNull(foundUser);
-        assertEquals(userId, foundUser.id());
-        assertEquals(email1, foundUser.email());
-        assertEquals(name1, foundUser.name());
+        assertEquals(userId, foundUser.getId());
+        assertEquals(name1, foundUser.getName());
+        assertEquals(email1, foundUser.getEmail());
     }
 
     @Test
     void get_NonExistingUser_ShouldReturnNull() {
-        // When
-        User user = userRepository.get(999L);
-
-        // Then
+        User user = userRepository.findById(999L).orElse(null);
         assertNull(user);
     }
 
     @Test
     void update_ExistingUser_ShouldUpdateUser() {
-        // Given
-        User user = new User(null, email1, name1);
-        User savedUser = userRepository.create(user);
-        Long userId = savedUser.id();
+        User user = new User(null, name1, email1);
+        User savedUser = userRepository.save(user);
+        Long userId = savedUser.getId();
 
-        // Создаём обновлённую версию
-        User updatedUser = new User(userId, "newemail@test.com", "New Name");
+        User updatedUser = new User(userId, "New Name", "newemail@test.com");
+        User result = userRepository.save(updatedUser);
 
-        // When
-        User result = userRepository.update(updatedUser);
-
-        // Then
-        assertEquals(userId, result.id());
-        assertEquals("newemail@test.com", result.email());
-        assertEquals("New Name", result.name());
+        assertEquals(userId, result.getId());
+        assertEquals("New Name", result.getName());
+        assertEquals("newemail@test.com", result.getEmail());
     }
 
     @Test
     void delete_ExistingUser_ShouldRemoveUser() {
-        // Given
-        User user = new User(null, email1, name1);
-        User savedUser = userRepository.create(user);
-        Long userId = savedUser.id();
+        User user = new User(null, name1, email1);
+        User savedUser = userRepository.save(user);
+        Long userId = savedUser.getId();
 
-        // When
-        userRepository.delete(userId);
+        userRepository.deleteById(userId);
 
-        // Then: пользователь не должен находиться после удаления
-        assertNull(userRepository.get(userId));
-        assertTrue(userRepository.checkIfNotExists(userId));
+        assertNull(userRepository.findById(userId).orElse(null));
+        assertFalse(userRepository.existsById(userId));
     }
 
     @Test
     void delete_NonExistingUser_ShouldNotThrowException() {
-        // When & Then: удаление несуществующего пользователя не должно вызывать исключений
-        assertDoesNotThrow(() -> userRepository.delete(999L));
+        assertDoesNotThrow(() -> userRepository.deleteById(999L));
     }
 
     @Test
-    void checkIfNotExists_ExistingUser_ShouldReturnFalse() {
-        // Given
-        User user = new User(null, email1, name1);
-        User savedUser = userRepository.create(user);
+    void notExists_ById_ExistingUser_ShouldReturnFalse() {
+        User user = new User(null, name1, email1);
+        User savedUser = userRepository.save(user);
 
-        // When
-        boolean notExists = userRepository.checkIfNotExists(savedUser.id());
-
-        // Then
-        assertFalse(notExists);
+        boolean exists = userRepository.existsById(savedUser.getId());
+        assertTrue(exists);
     }
 
     @Test
-    void checkIfNotExists_NonExistingUser_ShouldReturnTrue() {
-        // When
-        boolean notExists = userRepository.checkIfNotExists(999L);
-
-        // Then
-        assertTrue(notExists);
+    void notExists_ById_NonExistingUser_ShouldReturnTrue() {
+        boolean exists = userRepository.existsById(999L);
+        assertFalse(exists);
     }
 
     @Test
     void existsByEmail_ExistingEmail_ShouldReturnTrue() {
-        // Given
-        User user = new User(null, email1, name1);
-        userRepository.create(user);
+        User user = new User(null, name1, email1);
+        userRepository.save(user);
 
-        // When
-        boolean exists = userRepository.existsByEmail(email1);
-
-        // Then
+        boolean exists = userRepository.existsByEmailIgnoreCase(email1);
         assertTrue(exists);
     }
 
     @Test
     void existsByEmail_NonExistingEmail_ShouldReturnFalse() {
-        // When
-        boolean exists = userRepository.existsByEmail("nonexistent@test.com");
-
-        // Then
+        boolean exists = userRepository.existsByEmailIgnoreCase("nonexistent@test.com");
         assertFalse(exists);
     }
 
     @Test
     void existsByEmail_EmptyEmail_ShouldReturnFalse() {
-        // When
-        boolean exists = userRepository.existsByEmail("");
-
-        // Then
+        boolean exists = userRepository.existsByEmailIgnoreCase("");
         assertFalse(exists);
     }
 
     @Test
     void existsByEmail_NullEmail_ShouldReturnFalse() {
-        // When
-        boolean exists = userRepository.existsByEmail(null);
-
-        // Then
+        boolean exists = userRepository.existsByEmailIgnoreCase(null);
         assertFalse(exists);
     }
 
     @Test
     void existsByEmail_CaseInsensitive_ShouldReturnTrue() {
-        // Given: создаём пользователя с email в нижнем регистре
-        User user = new User(null, "test@test.com", name1);
-        userRepository.create(user);
+        User user = new User(null, name1, "test@test.com");
+        userRepository.save(user);
 
-        // When: ищем с email в верхнем регистре
-        boolean exists = userRepository.existsByEmail("TEST@TEST.COM");
-
-        // Then: должно найти, т.к. поиск не чувствителен к регистру
+        boolean exists = userRepository.existsByEmailIgnoreCase("TEST@TEST.COM");
         assertTrue(exists);
     }
 
     @Test
     void create_MultipleUsers_ShouldGenerateUniqueIds() {
-        // Given & When: создаём нескольких пользователей
-        User user1 = new User(null, email1, name1);
-        User user2 = new User(null, email2, name2);
+        User user1 = new User(null, name1, email1);
+        User user2 = new User(null, name2, email2);
 
-        User savedUser1 = userRepository.create(user1);
-        User savedUser2 = userRepository.create(user2);
+        User savedUser1 = userRepository.save(user1);
+        User savedUser2 = userRepository.save(user2);
 
-        // Then: ID должны быть уникальными и последовательно возрастающими
-        assertNotNull(savedUser1.id());
-        assertNotNull(savedUser2.id());
-        assertNotEquals(savedUser1.id(), savedUser2.id());
-        assertTrue(savedUser2.id() > savedUser1.id());
+        assertNotNull(savedUser1.getId());
+        assertNotNull(savedUser2.getId());
+        assertNotEquals(savedUser1.getId(), savedUser2.getId());
+        assertTrue(savedUser2.getId() > savedUser1.getId());
     }
 }

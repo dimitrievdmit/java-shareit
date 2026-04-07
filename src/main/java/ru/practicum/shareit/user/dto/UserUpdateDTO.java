@@ -6,9 +6,9 @@ import ru.practicum.shareit.validator.annotation.AtLeastOneField;
 @AtLeastOneField
 public record UserUpdateDTO(
 
-        @Email(message = "Электронная почта должна соответствовать формату электронного адреса")
-        String email,
+        String name,
 
-        String name) {
+        @Email(message = "Электронная почта должна соответствовать формату электронного адреса")
+        String email) implements UserRequestDTO {
 
 }

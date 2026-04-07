@@ -1,17 +1,35 @@
 package ru.practicum.shareit.user;
 
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.TestInstance;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.transaction.annotation.Transactional;
 import ru.practicum.shareit.user.repository.UserRepository;
-import ru.practicum.shareit.user.repository.UserRepositoryImpl;
 
+@DataJpaTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@ExtendWith(MockitoExtension.class)
 class UserRepositoryImplTest extends BaseUserRepositoryTest {
 
-    @Override
-    protected UserRepository createUserRepository() {
-        return new UserRepositoryImpl();
+    @Autowired
+    private TestEntityManager entityManager;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Transactional
+    @BeforeEach
+    void setUp() {
+        super.userRepository = userRepository;
+        entityManager.clear();
+    }
+
+    @Transactional
+    @AfterEach
+    void tearDown() {
+        userRepository.deleteAll();
+        entityManager.clear();
     }
 }

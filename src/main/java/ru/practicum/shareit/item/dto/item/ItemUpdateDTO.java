@@ -1,4 +1,4 @@
-package ru.practicum.shareit.item.dto;
+package ru.practicum.shareit.item.dto.item;
 
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
@@ -18,5 +18,5 @@ public record ItemUpdateDTO(
 
         @Positive(message = "Ид запроса должен быть больше 0")
         Long requestId
-) {
+) implements ItemBaseRequestDTO {
 }

@@ -5,9 +5,12 @@ import jakarta.validation.constraints.Positive;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import ru.practicum.shareit.item.dto.ItemCreateDTO;
-import ru.practicum.shareit.item.dto.ItemResponseDTO;
-import ru.practicum.shareit.item.dto.ItemUpdateDTO;
+import ru.practicum.shareit.item.dto.comment.CommentCreateDTO;
+import ru.practicum.shareit.item.dto.comment.CommentResponseDTO;
+import ru.practicum.shareit.item.dto.item.ItemCreateDTO;
+import ru.practicum.shareit.item.dto.item.ItemResponseDTO;
+import ru.practicum.shareit.item.dto.item.ItemUpdateDTO;
+import ru.practicum.shareit.item.dto.item.ItemWithBookingDTO;
 import ru.practicum.shareit.item.service.ItemService;
 
 import java.util.Collection;
@@ -29,14 +32,15 @@ public class ItemController {
     }
 
     @GetMapping("/{itemId}")
-    public ItemResponseDTO get(
+    public ItemWithBookingDTO get(
+            @RequestHeader("X-Sharer-User-Id") @Positive(message = "Ид пользователя должен быть больше 0") Long userId,
             @PathVariable @Positive(message = "Ид вещи должен быть больше 0") Long itemId
     ) {
-        return itemService.get(itemId);
+        return itemService.get(itemId, userId);
     }
 
     @GetMapping
-    public Collection<ItemResponseDTO> getAllByOwner(
+    public Collection<ItemWithBookingDTO> getAllByOwner(
             @RequestHeader("X-Sharer-User-Id") @Positive(message = "Ид владельца должен быть больше 0") Long ownerId
     ) {
         return itemService.getAllByOwner(ownerId);
@@ -64,5 +68,15 @@ public class ItemController {
             @PathVariable @Positive(message = "Ид вещи должен быть больше 0") Long itemId
     ) {
         itemService.delete(itemId, ownerId);
+    }
+
+    @PostMapping("/{itemId}/comment")
+    @ResponseStatus(HttpStatus.CREATED)
+    public CommentResponseDTO createComment(
+            @RequestHeader("X-Sharer-User-Id") @Positive(message = "Ид пользователя должен быть больше 0") Long userId,
+            @PathVariable @Positive(message = "Ид вещи должен быть больше 0") Long itemId,
+            @Valid @RequestBody CommentCreateDTO commentCreateDTO
+    ) {
+        return itemService.createComment(itemId, userId, commentCreateDTO.text());
     }
 }
