@@ -5,10 +5,7 @@ import lombok.NoArgsConstructor;
 import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.model.BookingStatus;
 import ru.practicum.shareit.item.dto.comment.CommentResponseDTO;
-import ru.practicum.shareit.item.dto.item.ItemBaseRequestDTO;
-import ru.practicum.shareit.item.dto.item.ItemResponseDTO;
-import ru.practicum.shareit.item.dto.item.ItemUpdateDTO;
-import ru.practicum.shareit.item.dto.item.ItemWithBookingDTO;
+import ru.practicum.shareit.item.dto.item.*;
 import ru.practicum.shareit.item.model.Item;
 
 import java.time.LocalDateTime;
@@ -130,5 +127,19 @@ public final class ItemMapper {
                 nextBooking != null ? mapToBookingInItemDTO(nextBooking) : null,
                 commentDtos
         );
+    }
+
+    public static ItemShortDTO mapToShortDTO(Item item) {
+        return new ItemShortDTO(
+                item.getId(),
+                item.getName(),
+                item.getOwnerId()
+        );
+    }
+
+    public static List<ItemShortDTO> mapToShortDTOList(Collection<Item> items) {
+        return items.stream()
+                .map(ItemMapper::mapToShortDTO)
+                .collect(Collectors.toList());
     }
 }

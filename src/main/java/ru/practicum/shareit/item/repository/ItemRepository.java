@@ -6,11 +6,16 @@ import org.springframework.stereotype.Repository;
 import ru.practicum.shareit.item.model.Item;
 
 import java.util.Collection;
+import java.util.List;
 
 @Repository
 public interface ItemRepository extends JpaRepository<Item, Long> {
 
     Collection<Item> findAllByOwnerId(Long ownerId);
+
+    Collection<Item> findAllByRequestId(Long requestId);
+
+    List<Item> findAllByRequestIdIn(List<Long> requestIds);
 
     @Query("SELECT i FROM Item i WHERE " +
             "(LOWER(i.name) LIKE LOWER(CONCAT('%', :text, '%')) OR " +

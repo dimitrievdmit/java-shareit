@@ -15,6 +15,7 @@ public class Validator {
     public static final String BOOKING_PERMISSION_ERR_TEXT = "Пользователь с ID %d не имеет прав " +
             "на выполнение операции с бронированием с ID %d";
     public static final String COMMENT_CREATE_VALIDATION_ERR_TEXT = "Чтобы оставить отзыв, у пользователя должно быть хотя бы одно завершённое бронирование данной вещи.";
+    public static final int MAX_PAGE_SIZE = 100;
 
     public static void throwIfStartEqualsEnd(LocalDateTime start, LocalDateTime end) {
         if (start.equals(end)) {

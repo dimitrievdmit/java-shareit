@@ -32,5 +32,4 @@ public record BookingCreateDTO(
         @FutureOrPresent(message = "Дата и время конца бронирования не может быть в прошлом")
         @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "UTC")
         LocalDateTime end) {
-
 }
