@@ -1,7 +1,6 @@
 package ru.practicum.shareit.booking.dto;
 
 
-import com.fasterxml.jackson.annotation.JsonFormat;
 import ru.practicum.shareit.item.dto.item.ItemResponseDTO;
 import ru.practicum.shareit.user.dto.UserResponseDTO;
 
@@ -13,10 +12,10 @@ import java.time.LocalDateTime;
 public record BookingResponseDTO(
         Long id,
 
-        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
+
         LocalDateTime start,
 
-        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss")
+
         LocalDateTime end,
 
         ItemResponseDTO item,

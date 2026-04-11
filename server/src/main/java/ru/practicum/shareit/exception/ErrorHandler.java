@@ -19,14 +19,14 @@ public class ErrorHandler {
      и более подходящих кодов ответов.
     */
 
-    @ExceptionHandler(ValidationException.class)
+    @ExceptionHandler(LogicException.class)
     @ResponseStatus(HttpStatus.BAD_REQUEST)
-    public ExceptionResponse handleValidationException(ValidationException e) {
+    public ExceptionResponse handleLogicException(LogicException e) {
         ExceptionResponse errorResponse = new ExceptionResponse(
-                "Ошибка валидации логики",
+                "Ошибка логики",
                 e.getMessage()
         );
-        log.error("Ошибка валидации логики: {}", e.getMessage());
+        log.error("Ошибка логики: {}", e.getMessage());
         return errorResponse;
     }
 

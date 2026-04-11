@@ -202,7 +202,7 @@ public class ItemServiceImpl implements ItemService {
         List<Booking> pastBookings = bookingRepository.findPastApprovedBookingsByItemIdAndBookerId(itemId, userId, now);
 
         if (pastBookings.isEmpty()) {
-            throwValidation(COMMENT_CREATE_VALIDATION_ERR_TEXT);
+            throwLogicException(COMMENT_CREATE_LOGIC_ERR_TEXT);
         }
     }
 

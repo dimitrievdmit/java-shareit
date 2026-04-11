@@ -2,8 +2,8 @@ package ru.practicum.shareit.item.mapper;
 
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
-import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.dto.BookingStatus;
+import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.item.dto.comment.CommentResponseDTO;
 import ru.practicum.shareit.item.dto.item.*;
 import ru.practicum.shareit.item.model.Item;

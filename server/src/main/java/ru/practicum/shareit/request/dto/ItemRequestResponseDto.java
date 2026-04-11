@@ -12,5 +12,5 @@ public record ItemRequestResponseDto(
         Long requestorId,
         LocalDateTime created,
         List<ItemShortDTO> items
-        ) {
+) {
 }

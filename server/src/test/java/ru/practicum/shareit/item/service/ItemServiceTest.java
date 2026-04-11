@@ -6,12 +6,12 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.dto.BookingStatus;
+import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.repository.BookingRepository;
+import ru.practicum.shareit.exception.LogicException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.PermissionException;
-import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.item.dto.comment.CommentResponseDTO;
 import ru.practicum.shareit.item.dto.comment.CommentViewDTO;
 import ru.practicum.shareit.item.dto.item.ItemCreateDTO;
@@ -30,7 +30,10 @@ import ru.practicum.shareit.user.service.UserService;
 import ru.practicum.shareit.validator.Validator;
 
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -429,8 +432,8 @@ class ItemServiceTest {
                 .thenReturn(Collections.emptyList());
 
         assertThatThrownBy(() -> itemService.createComment(itemId, userId, "text"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining(Validator.COMMENT_CREATE_VALIDATION_ERR_TEXT);
+                .isInstanceOf(LogicException.class)
+                .hasMessageContaining(Validator.COMMENT_CREATE_LOGIC_ERR_TEXT);
     }
 
     // --- Вспомогательные методы ---

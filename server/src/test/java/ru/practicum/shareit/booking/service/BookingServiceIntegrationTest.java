@@ -11,8 +11,8 @@ import ru.practicum.shareit.booking.dto.BookingState;
 import ru.practicum.shareit.booking.dto.BookingStatus;
 import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.repository.BookingRepository;
+import ru.practicum.shareit.exception.LogicException;
 import ru.practicum.shareit.exception.PermissionException;
-import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.item.repository.ItemRepository;
 import ru.practicum.shareit.user.model.User;
@@ -78,7 +78,7 @@ class BookingServiceIntegrationTest {
         itemRepository.save(item);
         BookingCreateDTO dto = new BookingCreateDTO(item.getId(), now.plusDays(1), now.plusDays(2));
         assertThatThrownBy(() -> bookingService.create(dto, booker.getId()))
-                .isInstanceOf(ValidationException.class)
+                .isInstanceOf(LogicException.class)
                 .hasMessageContaining("Бронируемая вещь должна быть доступна");
     }
 

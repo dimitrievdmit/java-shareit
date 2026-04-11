@@ -9,9 +9,11 @@ import ru.practicum.shareit.booking.dto.BookingCreateDTO;
 import ru.practicum.shareit.booking.dto.BookingResponseDTO;
 import ru.practicum.shareit.booking.dto.BookingState;
 import ru.practicum.shareit.booking.dto.BookingStatus;
-import ru.practicum.shareit.exception.*;
 import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.repository.BookingRepository;
+import ru.practicum.shareit.exception.InternalServerException;
+import ru.practicum.shareit.exception.LogicException;
+import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.item.repository.ItemRepository;
 import ru.practicum.shareit.item.service.ItemService;
@@ -23,7 +25,8 @@ import java.time.LocalDateTime;
 import java.util.Collection;
 
 import static ru.practicum.shareit.booking.mapper.BookingMapper.*;
-import static ru.practicum.shareit.validator.Validator.*;
+import static ru.practicum.shareit.validator.Validator.BOOKING_PERMISSION_ERR_TEXT;
+import static ru.practicum.shareit.validator.Validator.throwUnauthorised;
 
 @SuppressWarnings({"unused"})
 @Service
@@ -51,7 +54,7 @@ public class BookingServiceImpl implements BookingService {
         Item item = itemRepository.getReferenceById(bookingCreateDTO.itemId());
         // Если у бронируемой вещи поле available = false, то выбросить ошибку 400.
         if (!item.getAvailable()) {
-            throw new ValidationException("Бронируемая вещь должна быть доступна для бронирования.");
+            throw new LogicException("Бронируемая вещь должна быть доступна для бронирования.");
         }
 
         User user = userRepository.getReferenceById(userId);

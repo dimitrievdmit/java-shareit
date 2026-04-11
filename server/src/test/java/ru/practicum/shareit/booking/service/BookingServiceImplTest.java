@@ -9,13 +9,13 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Sort;
 import ru.practicum.shareit.booking.dto.BookingCreateDTO;
 import ru.practicum.shareit.booking.dto.BookingResponseDTO;
-import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.dto.BookingState;
 import ru.practicum.shareit.booking.dto.BookingStatus;
+import ru.practicum.shareit.booking.model.Booking;
 import ru.practicum.shareit.booking.repository.BookingRepository;
+import ru.practicum.shareit.exception.LogicException;
 import ru.practicum.shareit.exception.NotFoundException;
 import ru.practicum.shareit.exception.PermissionException;
-import ru.practicum.shareit.exception.ValidationException;
 import ru.practicum.shareit.item.model.Item;
 import ru.practicum.shareit.item.repository.ItemRepository;
 import ru.practicum.shareit.item.service.ItemService;
@@ -114,7 +114,7 @@ class BookingServiceImplTest {
         when(itemRepository.getReferenceById(itemId)).thenReturn(item);
 
         assertThatThrownBy(() -> bookingService.create(dto, userId))
-                .isInstanceOf(ValidationException.class)
+                .isInstanceOf(LogicException.class)
                 .hasMessageContaining("Бронируемая вещь должна быть доступна для бронирования");
     }
 

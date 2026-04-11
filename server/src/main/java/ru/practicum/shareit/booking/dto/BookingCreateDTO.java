@@ -1,8 +1,6 @@
 package ru.practicum.shareit.booking.dto;
 
 
-import com.fasterxml.jackson.annotation.JsonFormat;
-
 import java.time.LocalDateTime;
 
 /**
@@ -18,9 +16,7 @@ import java.time.LocalDateTime;
 public record BookingCreateDTO(
         Long itemId,
 
-        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "UTC")
         LocalDateTime start,
 
-        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss", timezone = "UTC")
         LocalDateTime end) {
 }
